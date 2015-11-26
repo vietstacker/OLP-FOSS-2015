@@ -1,0 +1,676 @@
+From 62c1721d387bb40449d247963d68ab69754dff78 Mon Sep 17 00:00:00 2001
+From: Van-Duyet Le <lvduit08@gmail.com>
+Date: Thu, 26 Nov 2015 13:28:41 +0700
+Subject: [PATCH 4/8] Change template, add d3js chart, update table with delete
+ logs action.
+
+---
+ .../dashboards/logmanagement/config/tables.py      |   1 -
+ .../config/templates/config/index.html             |  22 ++++-
+ .../templates/stat/_common_horizontal_form.html    |   3 -
+ .../config/templates/stat/_detail_overview.html    |  19 ----
+ .../config/templates/stat/detail.html              |  16 ----
+ .../logmanagement/config/templates/stat/index.html |   9 --
+ .../logmanagement/config/templates/stat/usage.html |  14 ---
+ .../dashboards/logmanagement/config/views.py       |  12 +--
+ .../dashboards/logmanagement/logmanagement.conf    |   1 +
+ .../static/dashboard/logmanagement/x.css           |   1 +
+ .../dashboards/logmanagement/util.py               |  39 ++++++++
+ .../dashboards/logmanagement/view/tables.py        |  25 ++++-
+ .../templates/view/_common_horizontal_form.html    |   3 -
+ .../view/templates/view/_detail_overview.html      |  19 ----
+ .../logmanagement/view/templates/view/chart.html   | 102 +++++++++++++++++++++
+ .../logmanagement/view/templates/view/detail.html  |  16 ----
+ .../logmanagement/view/templates/view/index.html   |  89 +++++++++++++++++-
+ .../logmanagement/view/templates/view/usage.html   |  14 ---
+ .../dashboards/logmanagement/view/views.py         |  44 ++++++++-
+ .../static/dashboard/logmanagement/data.csv        |   7 ++
+ 20 files changed, 324 insertions(+), 132 deletions(-)
+ delete mode 100644 openstack_dashboard/dashboards/logmanagement/config/templates/stat/_common_horizontal_form.html
+ delete mode 100644 openstack_dashboard/dashboards/logmanagement/config/templates/stat/_detail_overview.html
+ delete mode 100644 openstack_dashboard/dashboards/logmanagement/config/templates/stat/detail.html
+ delete mode 100644 openstack_dashboard/dashboards/logmanagement/config/templates/stat/index.html
+ delete mode 100644 openstack_dashboard/dashboards/logmanagement/config/templates/stat/usage.html
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/logmanagement.conf
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/static/dashboard/logmanagement/x.css
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/util.py
+ delete mode 100644 openstack_dashboard/dashboards/logmanagement/view/templates/view/_common_horizontal_form.html
+ delete mode 100644 openstack_dashboard/dashboards/logmanagement/view/templates/view/_detail_overview.html
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/view/templates/view/chart.html
+ delete mode 100644 openstack_dashboard/dashboards/logmanagement/view/templates/view/detail.html
+ delete mode 100644 openstack_dashboard/dashboards/logmanagement/view/templates/view/usage.html
+ create mode 100644 openstack_dashboard/static/dashboard/logmanagement/data.csv
+
+diff --git a/openstack_dashboard/dashboards/logmanagement/config/tables.py b/openstack_dashboard/dashboards/logmanagement/config/tables.py
+index 8021797..dfaf4fa 100644
+--- a/openstack_dashboard/dashboards/logmanagement/config/tables.py
++++ b/openstack_dashboard/dashboards/logmanagement/config/tables.py
+@@ -27,7 +27,6 @@ from keystoneclient.exceptions import Conflict  # noqa
+ from openstack_dashboard import api
+ from openstack_dashboard import policy
+ 
+-
+ class LogTable(tables.DataTable):
+     timestamp =  tables.Column("timestamp", verbose_name=_("timestamp"))
+     pid =  tables.Column("pid", verbose_name=_("pid"))
+diff --git a/openstack_dashboard/dashboards/logmanagement/config/templates/config/index.html b/openstack_dashboard/dashboards/logmanagement/config/templates/config/index.html
+index a557698..4b72482 100644
+--- a/openstack_dashboard/dashboards/logmanagement/config/templates/config/index.html
++++ b/openstack_dashboard/dashboards/logmanagement/config/templates/config/index.html
+@@ -4,6 +4,26 @@
+ 
+ {% block main %}
+ 
+-Chart here
++<form>
++  <div class="form-group">
++    <label for="exampleInputEmail1">Email address</label>
++    <input type="email" class="form-control" id="exampleInputEmail1" placeholder="Email">
++  </div>
++  <div class="form-group">
++    <label for="exampleInputPassword1">Password</label>
++    <input type="password" class="form-control" id="exampleInputPassword1" placeholder="Password">
++  </div>
++  <div class="form-group">
++    <label for="exampleInputFile">File input</label>
++    <input type="file" id="exampleInputFile">
++    <p class="help-block">Example block-level help text here.</p>
++  </div>
++  <div class="checkbox">
++    <label>
++      <input type="checkbox"> Check me out
++    </label>
++  </div>
++  <button type="submit" class="btn btn-default">Submit</button>
++</form>
+ 
+ {% endblock %}
+diff --git a/openstack_dashboard/dashboards/logmanagement/config/templates/stat/_common_horizontal_form.html b/openstack_dashboard/dashboards/logmanagement/config/templates/stat/_common_horizontal_form.html
+deleted file mode 100644
+index 97f0ef9..0000000
+--- a/openstack_dashboard/dashboards/logmanagement/config/templates/stat/_common_horizontal_form.html
++++ /dev/null
+@@ -1,3 +0,0 @@
+-<div class="form-horizontal">
+-  {% include "horizon/common/_horizontal_fields.html" %}
+-</div>
+diff --git a/openstack_dashboard/dashboards/logmanagement/config/templates/stat/_detail_overview.html b/openstack_dashboard/dashboards/logmanagement/config/templates/stat/_detail_overview.html
+deleted file mode 100644
+index a700c3d..0000000
+--- a/openstack_dashboard/dashboards/logmanagement/config/templates/stat/_detail_overview.html
++++ /dev/null
+@@ -1,19 +0,0 @@
+-{% load i18n  %}
+-
+-<h3>{% trans "Project Overview" %}</h3>
+-
+-<div class="info detail">
+-  <h4>{% trans "Information" %}</h4>
+-  <hr class="header_rule">
+-  <dl class="dl-horizontal">
+-    <dt>{% trans "Project Name" %}</dt>
+-    <dd>{{ project.name }}</dd>
+-    <dt>{% trans "Project ID" %}</dt>
+-    <dd>{{ project.id }}</dd>
+-    <dt>{% trans "Enabled" %}</dt>
+-    <dd>{{ project.enabled }}</dd>
+-    <dt>{% trans "Description" %}</dt>
+-    <dd>{{ project.description|default:_("None") }}</dd>
+-  </dl>
+-</div>
+-
+diff --git a/openstack_dashboard/dashboards/logmanagement/config/templates/stat/detail.html b/openstack_dashboard/dashboards/logmanagement/config/templates/stat/detail.html
+deleted file mode 100644
+index 8cb3590..0000000
+--- a/openstack_dashboard/dashboards/logmanagement/config/templates/stat/detail.html
++++ /dev/null
+@@ -1,16 +0,0 @@
+-{% extends 'base.html' %}
+-{% load i18n %}
+-{% block title %}{% trans "Project Details" %}{% endblock %}
+-
+-{% block page_header %}
+-  {% include "horizon/common/_page_header.html" with title=page_title %}
+-{% endblock page_header %}
+-
+-{% block main %}
+-  <div class="row">
+-    <div class="col-sm-12">
+-      {% include "identity/projects/_detail_overview.html" %}
+-    </div>
+-  </div>
+-{% endblock %}
+-
+diff --git a/openstack_dashboard/dashboards/logmanagement/config/templates/stat/index.html b/openstack_dashboard/dashboards/logmanagement/config/templates/stat/index.html
+deleted file mode 100644
+index a557698..0000000
+--- a/openstack_dashboard/dashboards/logmanagement/config/templates/stat/index.html
++++ /dev/null
+@@ -1,9 +0,0 @@
+-{% extends 'base.html' %}
+-{% load i18n %}
+-{% block title %}{% trans "Log" %}{% endblock %}
+-
+-{% block main %}
+-
+-Chart here
+-
+-{% endblock %}
+diff --git a/openstack_dashboard/dashboards/logmanagement/config/templates/stat/usage.html b/openstack_dashboard/dashboards/logmanagement/config/templates/stat/usage.html
+deleted file mode 100644
+index 26988d0..0000000
+--- a/openstack_dashboard/dashboards/logmanagement/config/templates/stat/usage.html
++++ /dev/null
+@@ -1,14 +0,0 @@
+-{% extends 'base.html' %}
+-{% load i18n sizeformat %}
+-{% block title %}{% trans "Project Usage Overview" %}{% endblock %}
+-
+-{% block page_header %}
+-    {% include "horizon/common/_domain_page_header.html" with title=page_title %}
+-{% endblock %}
+-
+-{% block main %}
+-  {% if simple_tenant_usage_enabled %}
+-    {% include "horizon/common/_usage_summary.html" %}
+-    {{ table.render }}
+-  {% endif %}
+-{% endblock %}
+diff --git a/openstack_dashboard/dashboards/logmanagement/config/views.py b/openstack_dashboard/dashboards/logmanagement/config/views.py
+index e3533e5..86129a9 100644
+--- a/openstack_dashboard/dashboards/logmanagement/config/views.py
++++ b/openstack_dashboard/dashboards/logmanagement/config/views.py
+@@ -25,18 +25,10 @@ from django.utils.translation import ugettext_lazy as _
+ from django.views import generic
+ from django.conf import settings
+ 
+-from horizon import exceptions
+-from horizon import messages
+-from horizon import tables
++from horizon import forms
+ from horizon import views
+-from horizon.utils import memoized
+-from horizon import workflows
+ 
+-from openstack_dashboard import api
+-from openstack_dashboard.api import keystone
+-from openstack_dashboard import policy
+-from openstack_dashboard import usage
+-from openstack_dashboard.usage import quotas
++from openstack_dashboard.dashboards.logmanagement import util
+ 
+ class IndexView(views.HorizonTemplateView):
+     template_name = 'logmanagement/config/index.html'
+diff --git a/openstack_dashboard/dashboards/logmanagement/logmanagement.conf b/openstack_dashboard/dashboards/logmanagement/logmanagement.conf
+new file mode 100644
+index 0000000..85bc791
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/logmanagement.conf
+@@ -0,0 +1 @@
++x=y
+diff --git a/openstack_dashboard/dashboards/logmanagement/static/dashboard/logmanagement/x.css b/openstack_dashboard/dashboards/logmanagement/static/dashboard/logmanagement/x.css
+new file mode 100644
+index 0000000..7c4a013
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/static/dashboard/logmanagement/x.css
+@@ -0,0 +1 @@
++aaa
+\ No newline at end of file
+diff --git a/openstack_dashboard/dashboards/logmanagement/util.py b/openstack_dashboard/dashboards/logmanagement/util.py
+new file mode 100644
+index 0000000..4b6cd22
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/util.py
+@@ -0,0 +1,39 @@
++import horizon
++import os
++
++
++config_file = os.path.dirname(os.path.realpath(__file__)) + '/logmanagement.conf'
++config = {}
++
++def getConfig(key):	
++	with open(config_file) as f:
++			data = f.read()
++			lines = data.split('\n')
++			for line in lines:
++				config_line = line.split('=')
++				if (config_line[0] and config_line[1]):
++					config[config_line[0]] = config_line[1]
++
++	if not config[key]:
++		return None
++
++	return config[key]
++
++def setConfig(key, value):
++	with open(config_file) as f:
++		data = f.read()
++		lines = data.split('\n')
++		for line in lines:
++			config_line = line.split('=')
++			if (config_line[0] and config_line[1]):
++				config[config_line[0]] = config_line[1]
++
++	config[key] = value
++
++	config_str = ''
++	for i in config:
++		config_str += i + '=' + config[i] + os.linesep
++
++	f = open(config_file,'w+')
++	f.write(config_str)
++	f.close() 
+\ No newline at end of file
+diff --git a/openstack_dashboard/dashboards/logmanagement/view/tables.py b/openstack_dashboard/dashboards/logmanagement/view/tables.py
+index 1255865..c538ff7 100644
+--- a/openstack_dashboard/dashboards/logmanagement/view/tables.py
++++ b/openstack_dashboard/dashboards/logmanagement/view/tables.py
+@@ -27,6 +27,26 @@ from keystoneclient.exceptions import Conflict  # noqa
+ from openstack_dashboard import api
+ from openstack_dashboard import policy
+ 
++class DeleteLog(tables.DeleteAction):
++    @staticmethod
++    def action_present(count):
++        return ungettext_lazy(
++            u"Delete Log",
++            u"Delete Logs",
++            count
++        )
++
++    @staticmethod
++    def action_past(count):
++        return ungettext_lazy(
++            u"Deleted Log",
++            u"Deleted Logs",
++            count
++        )
++
++    def delete(self, request, obj_id):
++        pass
++
+ 
+ class LogTable(tables.DataTable):
+     timestamp =  tables.Column("timestamp", verbose_name=_("timestamp"))
+@@ -37,4 +57,7 @@ class LogTable(tables.DataTable):
+ 
+     class Meta(object):
+         name = "LogTable"
+-        verbose_name = _("LogTable")
+\ No newline at end of file
++        verbose_name = _("LogTable")
++        ajax = True
++
++        table_actions = (DeleteLog, )
+\ No newline at end of file
+diff --git a/openstack_dashboard/dashboards/logmanagement/view/templates/view/_common_horizontal_form.html b/openstack_dashboard/dashboards/logmanagement/view/templates/view/_common_horizontal_form.html
+deleted file mode 100644
+index 97f0ef9..0000000
+--- a/openstack_dashboard/dashboards/logmanagement/view/templates/view/_common_horizontal_form.html
++++ /dev/null
+@@ -1,3 +0,0 @@
+-<div class="form-horizontal">
+-  {% include "horizon/common/_horizontal_fields.html" %}
+-</div>
+diff --git a/openstack_dashboard/dashboards/logmanagement/view/templates/view/_detail_overview.html b/openstack_dashboard/dashboards/logmanagement/view/templates/view/_detail_overview.html
+deleted file mode 100644
+index a700c3d..0000000
+--- a/openstack_dashboard/dashboards/logmanagement/view/templates/view/_detail_overview.html
++++ /dev/null
+@@ -1,19 +0,0 @@
+-{% load i18n  %}
+-
+-<h3>{% trans "Project Overview" %}</h3>
+-
+-<div class="info detail">
+-  <h4>{% trans "Information" %}</h4>
+-  <hr class="header_rule">
+-  <dl class="dl-horizontal">
+-    <dt>{% trans "Project Name" %}</dt>
+-    <dd>{{ project.name }}</dd>
+-    <dt>{% trans "Project ID" %}</dt>
+-    <dd>{{ project.id }}</dd>
+-    <dt>{% trans "Enabled" %}</dt>
+-    <dd>{{ project.enabled }}</dd>
+-    <dt>{% trans "Description" %}</dt>
+-    <dd>{{ project.description|default:_("None") }}</dd>
+-  </dl>
+-</div>
+-
+diff --git a/openstack_dashboard/dashboards/logmanagement/view/templates/view/chart.html b/openstack_dashboard/dashboards/logmanagement/view/templates/view/chart.html
+new file mode 100644
+index 0000000..f57e739
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/view/templates/view/chart.html
+@@ -0,0 +1,102 @@
++
++<script src="//d3js.org/d3.v3.min.js"></script>
++
++<script>
++
++var margin = {top: 20, right: 20, bottom: 30, left: 40},
++    width = 960 - margin.left - margin.right,
++    height = 500 - margin.top - margin.bottom;
++
++var x0 = d3.scale.ordinal()
++    .rangeRoundBands([0, width], .1);
++
++var x1 = d3.scale.ordinal();
++
++var y = d3.scale.linear()
++    .range([height, 0]);
++
++var color = d3.scale.ordinal()
++    .range(["#98abc5", "#8a89a6", "#7b6888", "#6b486b", "#a05d56", "#d0743c", "#ff8c00"]);
++
++var xAxis = d3.svg.axis()
++    .scale(x0)
++    .orient("bottom");
++
++var yAxis = d3.svg.axis()
++    .scale(y)
++    .orient("left")
++    .tickFormat(d3.format(".2s"));
++
++var svg = d3.select("#logchart").append("svg")
++    .attr("width", width + margin.left + margin.right)
++    .attr("height", height + margin.top + margin.bottom)
++  .append("g")
++    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
++
++d3.csv("/static/dashboard/logmanagement/data.csv", function(error, data) {
++  if (error) throw error;
++
++  var ageNames = d3.keys(data[0]).filter(function(key) { return key !== "State"; });
++
++  data.forEach(function(d) {
++    d.ages = ageNames.map(function(name) { return {name: name, value: +d[name]}; });
++  });
++
++  x0.domain(data.map(function(d) { return d.State; }));
++  x1.domain(ageNames).rangeRoundBands([0, x0.rangeBand()]);
++  y.domain([0, d3.max(data, function(d) { return d3.max(d.ages, function(d) { return d.value; }); })]);
++
++  svg.append("g")
++      .attr("class", "x axis")
++      .attr("transform", "translate(0," + height + ")")
++      .call(xAxis);
++
++  svg.append("g")
++      .attr("class", "y axis")
++      .call(yAxis)
++    .append("text")
++      .attr("transform", "rotate(-90)")
++      .attr("y", 6)
++      .attr("dy", ".71em")
++      .style("text-anchor", "end")
++      .text("Population");
++
++  var state = svg.selectAll(".state")
++      .data(data)
++    .enter().append("g")
++      .attr("class", "g")
++      .attr("transform", function(d) { return "translate(" + x0(d.State) + ",0)"; });
++
++  state.selectAll("rect")
++      .data(function(d) { return d.ages; })
++    .enter().append("rect")
++      .attr("width", x1.rangeBand())
++      .attr("x", function(d) { return x1(d.name); })
++      .attr("y", function(d) { return y(d.value); })
++      .attr("height", function(d) { return height - y(d.value); })
++      .style("fill", function(d) { return color(d.name); });
++
++  var legend = svg.selectAll(".legend")
++      .data(ageNames.slice().reverse())
++    .enter().append("g")
++      .attr("class", "legend")
++      .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
++
++  legend.append("rect")
++      .attr("x", width - 18)
++      .attr("width", 18)
++      .attr("height", 18)
++      .style("fill", color);
++
++  legend.append("text")
++      .attr("x", width - 24)
++      .attr("y", 9)
++      .attr("dy", ".35em")
++      .style("text-anchor", "end")
++      .text(function(d) { return d; });
++
++});
++
++</script>
++
++<div id="logchart"></div>
+\ No newline at end of file
+diff --git a/openstack_dashboard/dashboards/logmanagement/view/templates/view/detail.html b/openstack_dashboard/dashboards/logmanagement/view/templates/view/detail.html
+deleted file mode 100644
+index 8cb3590..0000000
+--- a/openstack_dashboard/dashboards/logmanagement/view/templates/view/detail.html
++++ /dev/null
+@@ -1,16 +0,0 @@
+-{% extends 'base.html' %}
+-{% load i18n %}
+-{% block title %}{% trans "Project Details" %}{% endblock %}
+-
+-{% block page_header %}
+-  {% include "horizon/common/_page_header.html" with title=page_title %}
+-{% endblock page_header %}
+-
+-{% block main %}
+-  <div class="row">
+-    <div class="col-sm-12">
+-      {% include "identity/projects/_detail_overview.html" %}
+-    </div>
+-  </div>
+-{% endblock %}
+-
+diff --git a/openstack_dashboard/dashboards/logmanagement/view/templates/view/index.html b/openstack_dashboard/dashboards/logmanagement/view/templates/view/index.html
+index 611fdc8..fc24119 100644
+--- a/openstack_dashboard/dashboards/logmanagement/view/templates/view/index.html
++++ b/openstack_dashboard/dashboards/logmanagement/view/templates/view/index.html
+@@ -1,9 +1,96 @@
+ {% extends 'base.html' %}
+ {% load i18n %}
+-{% block title %}{% trans "Log" %}{% endblock %}
++{% block title %}{% trans "Log View" %}{% endblock %}
+ 
+ {% block main %}
+ 
++<link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.37/css/bootstrap-datetimepicker.min.css">
++
++<script type="text/javascript" src="//netdna.bootstrapcdn.com/twitter-bootstrap/2.2.2/js/bootstrap.min.js"></script>
++<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/moment.js/2.10.6/moment.min.js"></script>
++<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0-alpha/js/bootstrap.min.js"></script>
++<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.37/js/bootstrap-datetimepicker.min.js"></script>
++
++<script type="text/javascript">
++
++$(document).ready(function() {
++	$('#datetimepicker1').datetimepicker({
++
++    });
++
++    $('#datetimepicker2').datetimepicker({
++
++    });
++});
++</script>
++
++<div class="container-fluid">
++    <div class="row" style="margin-bottom: 10px">
++        <div class="col-md-5">
++            <div class="form-group">
++              <label class="col-md-4 control-label" for="selectbasic">Project</label>
++              <div class="col-md-8">
++                <select id="project" name="project_choose" class="form-control">
++                    <option>Nova</option>
++                    <option>Glance</option>
++                    <option>NeuTron</option>
++                    <option>Keystone</option>
++                </select>
++              </div>
++            </div>
++        </div>
++        <div class="col-md-5">
++            <div class="form-group">
++              <label class="col-md-4 control-label">Level</label>
++              <div class="col-md-8">
++                <select id="level" name="level_choose" class="form-control">>
++                        <option>ALL</option>
++                        <option>ERROR</option>
++                        <option>INFO</option>
++                        <option>WARN</option>
++                        <option>DEBUG</option>
++                    </select>
++              </div>
++            </div>
++        </div>
++        <div class="col-md-2">
++            <button class="btn btn-default">Filter</button>
++        </div>
++    </div>
++</div>
++
++<div class="container-fluid">
++    <div class="row">
++        <div class="col-md-5">
++            <div class="form-group">
++              <label class="col-md-4 control-label">Start</label>
++              <div class="col-md-8">
++                <input id="datetimepicker1" data-format="dd/MM/yyyy hh:mm:ss" type="text" class="form-control" />
++              </div>
++            </div>
++        </div>
++        <div class="col-md-5">
++            <div class="form-group">
++              <label class="col-md-4 control-label">Start</label>
++              <div class="col-md-8">
++                <input id="datetimepicker2" data-format="dd/MM/yyyy hh:mm:ss" type="text" class="form-control" />
++              </div>
++            </div>
++        </div>
++        <div class="col-md-2">
++            <button class="btn btn-default">Refresh</button>
++        </div>
++    </div>
++</div>
++
++<div class="container-fluid">
++    <div class="row">
++        <div class="col-md-10">
++            {% include 'logmanagement/view/chart.html' %}
++        </div>
++    </div>
++</div>
++
+  {{ table.render }}
+ 
+ {% endblock %}
+diff --git a/openstack_dashboard/dashboards/logmanagement/view/templates/view/usage.html b/openstack_dashboard/dashboards/logmanagement/view/templates/view/usage.html
+deleted file mode 100644
+index 26988d0..0000000
+--- a/openstack_dashboard/dashboards/logmanagement/view/templates/view/usage.html
++++ /dev/null
+@@ -1,14 +0,0 @@
+-{% extends 'base.html' %}
+-{% load i18n sizeformat %}
+-{% block title %}{% trans "Project Usage Overview" %}{% endblock %}
+-
+-{% block page_header %}
+-    {% include "horizon/common/_domain_page_header.html" with title=page_title %}
+-{% endblock %}
+-
+-{% block main %}
+-  {% if simple_tenant_usage_enabled %}
+-    {% include "horizon/common/_usage_summary.html" %}
+-    {{ table.render }}
+-  {% endif %}
+-{% endblock %}
+diff --git a/openstack_dashboard/dashboards/logmanagement/view/views.py b/openstack_dashboard/dashboards/logmanagement/view/views.py
+index 7f3eb08..3386525 100644
+--- a/openstack_dashboard/dashboards/logmanagement/view/views.py
++++ b/openstack_dashboard/dashboards/logmanagement/view/views.py
+@@ -34,15 +34,47 @@ from horizon import views
+ from horizon.utils import memoized
+ from horizon import workflows
+ 
+-from openstack_dashboard import api
+-from openstack_dashboard.api import keystone
+-from openstack_dashboard import policy
+-from openstack_dashboard import usage
+-from openstack_dashboard.usage import quotas
++from openstack_dashboard.dashboards.logmanagement import util
+ 
+ from openstack_dashboard.dashboards.logmanagement.view \
+     import tables as log_tables
+ 
++######################################
++# import pandas as pd
++# import numpy as np
++# import re
++
++# import matplotlib
++# matplotlib.use('Agg')
++# import matplotlib.pyplot as plt
++
++
++# islab_log_path = getattr(settings, 'ROOT_PATH') + '/../../logs'
++# with open(islab_log_path + '/horizon.log') as f:
++#     islab_data = f.read()
++
++# islab_data_line = islab_data.split('\n')
++# islab_data_arr = []
++
++# for i in range(len(islab_data_line)):
++#     _group = re.match("([A-Z]+)\:", islab_data_line[i][27:])
++#     if  _group and _group.group(1):
++#         islab_data_arr.append({'date': islab_data_line[i][0:10], 'time': islab_data_line[i][11:19], 'type': _group.group(1), 'content': islab_data_line[i][27:], 'count': 1})
++# islab_data_frame = pd.DataFrame(data=islab_data_arr)
++
++# islab_data_frame_group = islab_data_frame.groupby(['date', 'type']).agg(np.sum)
++
++# islab_data_frame_plot = islab_data_frame_group.unstack().plot(
++#     kind='bar',
++#     stacked=True,
++#     layout=("Date", "Number"), 
++#     figsize=(10, 5)
++# )
++# islab_data_frame_plot.legend(loc=1, borderaxespad=0.)
++
++# fig = islab_data_frame_plot.get_figure()
++# fig.savefig(getattr(settings, 'ROOT_PATH') + "/static/dashboard/img/horizon-admin-overview.png")
++
+ class IndexView(tables.DataTableView):
+     template_name = 'logmanagement/view/index.html'
+     page_title = _("Log Viewer")
+@@ -142,6 +174,8 @@ class IndexView(tables.DataTableView):
+         data_arr = []
+         self._more = False
+ 
++        util.setConfig('x', 'y')
++
+         log_path = '/opt/stack/logs'
+         for filename in os.listdir(log_path):
+             if filename.endswith(".log"):
+diff --git a/openstack_dashboard/static/dashboard/logmanagement/data.csv b/openstack_dashboard/static/dashboard/logmanagement/data.csv
+new file mode 100644
+index 0000000..ac84883
+--- /dev/null
++++ b/openstack_dashboard/static/dashboard/logmanagement/data.csv
+@@ -0,0 +1,7 @@
++State,Under 5 Years,5 to 13 Years,14 to 17 Years,18 to 24 Years,25 to 44 Years,45 to 64 Years,65 Years and Over
++CA,2704659,4499890,2159981,3853788,10604510,8819342,4114496
++TX,2027307,3277946,1420518,2454721,7017731,5656528,2472223
++NY,1208495,2141490,1058031,1999120,5355235,5120254,2607672
++FL,1140516,1938695,925060,1607297,4782119,4746856,3187797
++IL,894368,1558919,725973,1311479,3596343,3239173,1575308
++PA,737462,1345341,679201,1203944,3157759,3414001,1910571
+\ No newline at end of file
+-- 
+2.5.0
+
