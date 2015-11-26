@@ -1,0 +1,813 @@
+From 8ada5580626a0c14855fa316cbc68dcf8f462f7f Mon Sep 17 00:00:00 2001
+From: Van-Duyet Le <lvduit08@gmail.com>
+Date: Thu, 26 Nov 2015 10:23:10 +0700
+Subject: [PATCH 1/8] Initial log management dashboard
+
+---
+ .../dashboards/logmanagement/__init__.py           |   0
+ .../dashboards/logmanagement/dashboard.py          |  27 ++++
+ .../dashboards/logmanagement/stat/__init__.py      |   0
+ .../dashboards/logmanagement/stat/panel.py         |  32 +++++
+ .../dashboards/logmanagement/stat/tables.py        |  40 ++++++
+ .../templates/stat/_common_horizontal_form.html    |   3 +
+ .../stat/templates/stat/_detail_overview.html      |  19 +++
+ .../logmanagement/stat/templates/stat/detail.html  |  16 +++
+ .../logmanagement/stat/templates/stat/index.html   |   9 ++
+ .../logmanagement/stat/templates/stat/usage.html   |  14 +++
+ .../dashboards/logmanagement/stat/urls.py          |  28 +++++
+ .../dashboards/logmanagement/stat/views.py         | 138 +++++++++++++++++++++
+ .../dashboards/logmanagement/view/__init__.py      |   0
+ .../dashboards/logmanagement/view/panel.py         |  30 +++++
+ .../dashboards/logmanagement/view/tables.py        |  40 ++++++
+ .../templates/view/_common_horizontal_form.html    |   3 +
+ .../view/templates/view/_detail_overview.html      |  19 +++
+ .../logmanagement/view/templates/view/detail.html  |  16 +++
+ .../logmanagement/view/templates/view/index.html   |   9 ++
+ .../logmanagement/view/templates/view/usage.html   |  14 +++
+ .../dashboards/logmanagement/view/urls.py          |  28 +++++
+ .../dashboards/logmanagement/view/views.py         | 130 +++++++++++++++++++
+ openstack_dashboard/enabled/_26_logmanagement.py   |   8 ++
+ 23 files changed, 623 insertions(+)
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/__init__.py
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/dashboard.py
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/stat/__init__.py
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/stat/panel.py
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/stat/tables.py
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/stat/templates/stat/_common_horizontal_form.html
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/stat/templates/stat/_detail_overview.html
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/stat/templates/stat/detail.html
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/stat/templates/stat/index.html
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/stat/templates/stat/usage.html
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/stat/urls.py
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/stat/views.py
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/view/__init__.py
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/view/panel.py
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/view/tables.py
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/view/templates/view/_common_horizontal_form.html
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/view/templates/view/_detail_overview.html
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/view/templates/view/detail.html
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/view/templates/view/index.html
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/view/templates/view/usage.html
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/view/urls.py
+ create mode 100644 openstack_dashboard/dashboards/logmanagement/view/views.py
+ create mode 100644 openstack_dashboard/enabled/_26_logmanagement.py
+
+diff --git a/openstack_dashboard/dashboards/logmanagement/__init__.py b/openstack_dashboard/dashboards/logmanagement/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/openstack_dashboard/dashboards/logmanagement/dashboard.py b/openstack_dashboard/dashboards/logmanagement/dashboard.py
+new file mode 100644
+index 0000000..9942799
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/dashboard.py
+@@ -0,0 +1,27 @@
++# Copyright 2014 Hewlett-Packard Development Company, L.P.
++#
++#    Licensed under the Apache License, Version 2.0 (the "License"); you may
++#    not use this file except in compliance with the License. You may obtain
++#    a copy of the License at
++#
++#         http://www.apache.org/licenses/LICENSE-2.0
++#
++#    Unless required by applicable law or agreed to in writing, software
++#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
++#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
++#    License for the specific language governing permissions and limitations
++#    under the License.
++
++
++from django.utils.translation import ugettext_lazy as _
++
++import horizon
++
++
++class Logmanagement(horizon.Dashboard):
++    name = _("Log Management")
++    slug = "logmanagement"
++    default_panel = 'view'
++    panels = ('view', 'config', )
++
++horizon.register(Logmanagement)
+diff --git a/openstack_dashboard/dashboards/logmanagement/stat/__init__.py b/openstack_dashboard/dashboards/logmanagement/stat/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/openstack_dashboard/dashboards/logmanagement/stat/panel.py b/openstack_dashboard/dashboards/logmanagement/stat/panel.py
+new file mode 100644
+index 0000000..a5bf55b
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/stat/panel.py
+@@ -0,0 +1,32 @@
++# Copyright 2012 United States Government as represented by the
++# Administrator of the National Aeronautics and Space Administration.
++# All Rights Reserved.
++#
++# Copyright 2012 Nebula, Inc.
++#
++#    Licensed under the Apache License, Version 2.0 (the "License"); you may
++#    not use this file except in compliance with the License. You may obtain
++#    a copy of the License at
++#
++#         http://www.apache.org/licenses/LICENSE-2.0
++#
++#    Unless required by applicable law or agreed to in writing, software
++#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
++#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
++#    License for the specific language governing permissions and limitations
++#    under the License.
++
++from django.utils.translation import ugettext_lazy as _
++
++import horizon
++
++from openstack_dashboard.dashboards.logmanagement import dashboard
++
++
++class LogStat(horizon.Panel):
++    name = _("Log Stat")
++    slug = 'stat'
++#    policy_rules = (("identity", "identity:list_projects"),
++#                    ("identity", "identity:list_user_projects"))
++
++dashboard.Logmanagement.register(LogStat)
+diff --git a/openstack_dashboard/dashboards/logmanagement/stat/tables.py b/openstack_dashboard/dashboards/logmanagement/stat/tables.py
+new file mode 100644
+index 0000000..8021797
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/stat/tables.py
+@@ -0,0 +1,40 @@
++# Licensed under the Apache License, Version 2.0 (the "License"); you may
++# not use this file except in compliance with the License. You may obtain
++# a copy of the License at
++#
++#      http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
++# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
++# License for the specific language governing permissions and limitations
++# under the License.
++
++from django.core.exceptions import ValidationError  # noqa
++from django.core.urlresolvers import reverse
++from django.template import defaultfilters as filters
++from django.utils.http import urlencode
++from django.utils.translation import ugettext_lazy as _
++from django.utils.translation import ungettext_lazy
++
++from openstack_auth import utils as auth_utils
++
++from horizon import exceptions
++from horizon import forms
++from horizon import tables
++from keystoneclient.exceptions import Conflict  # noqa
++
++from openstack_dashboard import api
++from openstack_dashboard import policy
++
++
++class LogTable(tables.DataTable):
++    timestamp =  tables.Column("timestamp", verbose_name=_("timestamp"))
++    pid =  tables.Column("pid", verbose_name=_("pid"))
++    level =  tables.Column("level", verbose_name=_("level"))
++    component =  tables.Column("component", verbose_name=_("component"))
++    message =  tables.Column("message", verbose_name=_("message"))
++
++    class Meta(object):
++        name = "LogTable"
++        verbose_name = _("LogTable")
+\ No newline at end of file
+diff --git a/openstack_dashboard/dashboards/logmanagement/stat/templates/stat/_common_horizontal_form.html b/openstack_dashboard/dashboards/logmanagement/stat/templates/stat/_common_horizontal_form.html
+new file mode 100644
+index 0000000..97f0ef9
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/stat/templates/stat/_common_horizontal_form.html
+@@ -0,0 +1,3 @@
++<div class="form-horizontal">
++  {% include "horizon/common/_horizontal_fields.html" %}
++</div>
+diff --git a/openstack_dashboard/dashboards/logmanagement/stat/templates/stat/_detail_overview.html b/openstack_dashboard/dashboards/logmanagement/stat/templates/stat/_detail_overview.html
+new file mode 100644
+index 0000000..a700c3d
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/stat/templates/stat/_detail_overview.html
+@@ -0,0 +1,19 @@
++{% load i18n  %}
++
++<h3>{% trans "Project Overview" %}</h3>
++
++<div class="info detail">
++  <h4>{% trans "Information" %}</h4>
++  <hr class="header_rule">
++  <dl class="dl-horizontal">
++    <dt>{% trans "Project Name" %}</dt>
++    <dd>{{ project.name }}</dd>
++    <dt>{% trans "Project ID" %}</dt>
++    <dd>{{ project.id }}</dd>
++    <dt>{% trans "Enabled" %}</dt>
++    <dd>{{ project.enabled }}</dd>
++    <dt>{% trans "Description" %}</dt>
++    <dd>{{ project.description|default:_("None") }}</dd>
++  </dl>
++</div>
++
+diff --git a/openstack_dashboard/dashboards/logmanagement/stat/templates/stat/detail.html b/openstack_dashboard/dashboards/logmanagement/stat/templates/stat/detail.html
+new file mode 100644
+index 0000000..8cb3590
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/stat/templates/stat/detail.html
+@@ -0,0 +1,16 @@
++{% extends 'base.html' %}
++{% load i18n %}
++{% block title %}{% trans "Project Details" %}{% endblock %}
++
++{% block page_header %}
++  {% include "horizon/common/_page_header.html" with title=page_title %}
++{% endblock page_header %}
++
++{% block main %}
++  <div class="row">
++    <div class="col-sm-12">
++      {% include "identity/projects/_detail_overview.html" %}
++    </div>
++  </div>
++{% endblock %}
++
+diff --git a/openstack_dashboard/dashboards/logmanagement/stat/templates/stat/index.html b/openstack_dashboard/dashboards/logmanagement/stat/templates/stat/index.html
+new file mode 100644
+index 0000000..a557698
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/stat/templates/stat/index.html
+@@ -0,0 +1,9 @@
++{% extends 'base.html' %}
++{% load i18n %}
++{% block title %}{% trans "Log" %}{% endblock %}
++
++{% block main %}
++
++Chart here
++
++{% endblock %}
+diff --git a/openstack_dashboard/dashboards/logmanagement/stat/templates/stat/usage.html b/openstack_dashboard/dashboards/logmanagement/stat/templates/stat/usage.html
+new file mode 100644
+index 0000000..26988d0
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/stat/templates/stat/usage.html
+@@ -0,0 +1,14 @@
++{% extends 'base.html' %}
++{% load i18n sizeformat %}
++{% block title %}{% trans "Project Usage Overview" %}{% endblock %}
++
++{% block page_header %}
++    {% include "horizon/common/_domain_page_header.html" with title=page_title %}
++{% endblock %}
++
++{% block main %}
++  {% if simple_tenant_usage_enabled %}
++    {% include "horizon/common/_usage_summary.html" %}
++    {{ table.render }}
++  {% endif %}
++{% endblock %}
+diff --git a/openstack_dashboard/dashboards/logmanagement/stat/urls.py b/openstack_dashboard/dashboards/logmanagement/stat/urls.py
+new file mode 100644
+index 0000000..b670636
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/stat/urls.py
+@@ -0,0 +1,28 @@
++# Copyright 2012 United States Government as represented by the
++# Administrator of the National Aeronautics and Space Administration.
++# All Rights Reserved.
++#
++# Copyright 2012 Nebula, Inc.
++#
++#    Licensed under the Apache License, Version 2.0 (the "License"); you may
++#    not use this file except in compliance with the License. You may obtain
++#    a copy of the License at
++#
++#         http://www.apache.org/licenses/LICENSE-2.0
++#
++#    Unless required by applicable law or agreed to in writing, software
++#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
++#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
++#    License for the specific language governing permissions and limitations
++#    under the License.
++
++from django.conf.urls import patterns
++from django.conf.urls import url
++
++from openstack_dashboard.dashboards.logmanagement.view import views
++
++
++urlpatterns = patterns(
++    '',
++    url(r'^$', views.IndexView.as_view(), name='index'),
++)
+diff --git a/openstack_dashboard/dashboards/logmanagement/stat/views.py b/openstack_dashboard/dashboards/logmanagement/stat/views.py
+new file mode 100644
+index 0000000..3df1824
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/stat/views.py
+@@ -0,0 +1,138 @@
++# Copyright 2012 United States Government as represented by the
++# Administrator of the National Aeronautics and Space Administration.
++# All Rights Reserved.
++#
++# Copyright 2012 Nebula, Inc.
++#
++#    Licensed under the Apache License, Version 2.0 (the "License"); you may
++#    not use this file except in compliance with the License. You may obtain
++#    a copy of the License at
++#
++#         http://www.apache.org/licenses/LICENSE-2.0
++#
++#    Unless required by applicable law or agreed to in writing, software
++#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
++#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
++#    License for the specific language governing permissions and limitations
++#    under the License.
++
++import time
++import re
++from collections import namedtuple
++
++from django.core.urlresolvers import reverse
++from django.utils.translation import ugettext_lazy as _
++from django.views import generic
++from django.conf import settings
++
++from horizon import exceptions
++from horizon import messages
++from horizon import tables
++from horizon import views
++from horizon.utils import memoized
++from horizon import workflows
++
++from openstack_dashboard import api
++from openstack_dashboard.api import keystone
++from openstack_dashboard import policy
++from openstack_dashboard import usage
++from openstack_dashboard.usage import quotas
++
++class IndexView(views.HorizonTemplateView):
++    template_name = 'logmanagement/stat/index.html'
++    page_title = _("Log Stat")
++
++    def get_data(self):
++        # tenants = []
++        # marker = self.request.GET.get(
++        #     log_tables.LogTable._meta.pagination_param, None)
++        # domain_context = self.request.session.get('domain_context', None)
++        # self._more = False
++        # if policy.check((("identity", "identity:list_projects"),),
++        #                 self.request):
++        #     try:
++        #         tenants, self._more = api.keystone.tenant_list(
++        #             self.request,
++        #             domain=domain_context,
++        #             paginate=True,
++        #             marker=marker)
++        #     except Exception:
++        #         exceptions.handle(self.request,
++        #                           _("Unable to retrieve project list."))
++        # elif policy.check((("identity", "identity:list_user_projects"),),
++        #                   self.request):
++        #     try:
++        #         tenants, self._more = api.keystone.tenant_list(
++        #             self.request,
++        #             user=self.request.user.id,
++        #             paginate=True,
++        #             marker=marker,
++        #             admin=False)
++        #     except Exception:
++        #         exceptions.handle(self.request,
++        #                           _("Unable to retrieve project information."))
++        # else:
++        #     msg = \
++        #         _("Insufficient privilege level to view project information.")
++        #     messages.info(self.request, msg)
++        # return tenants
++           
++        tenants = []
++        self._more = False
++
++        Datum = namedtuple('datum', 'timestamp message component pid id level')
++
++        log_path = '/var/log/apache2/'
++        with open(log_path + 'keystone.log') as f:
++            log_data = f.read()
++
++        data_line = log_data.split('\n')
++        data_arr = []
++
++        OPENSTACK_TIMESTAMP = re.compile("\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.[0-9]{6}")
++        #OPENSTACK_PROG = re.compile("(?:[ a-zA-Z0-9_\-]+\.)+[ A-Za-z0-9_\-$]+")
++        #OPENSTACK_PROG_SINGLE = re.compile("[A-Za-z0-9_\-$]+")
++        #OPENSTACK_SOURCE = "%{OPENSTACK_PROG}|%{OPENSTACK_PROG_SINGLE}"
++        #OPENSTACK_REQ_LIST = "(\[(?:(req-%{UUID}|%{UUID}|%{BASE16NUM}|None|-|%{SPACE}))+\])?"
++        OPENSTACK_PID = re.compile("\s([0-9]+)?\s")
++        OPENSTACK_LOGLEVEL = re.compile("([D|d]ebug|DEBUG|[N|n]otice|NOTICE|[I|i]nfo|INFO|[W|w]arn?(?:ing)?|WARN?(?:ING)?|[E|e]rr?(?:or)?|ERR?(?:OR)?|[C|c]rit?(?:ical)?|CRIT?(?:ICAL)?|[F|f]atal|FATAL|[S|s]evere|SEVERE|[A|a]udit|AUDIT)")
++        #OPENSTACK_TRACE = "%{TIMESTAMP_ISO8601:timestamp} %{POSINT:pid:int} ([T|t]race|TRACE) %{OPENSTACK_SOURCE:program}%{GREEDYDATA:msg}|%{RAW_TRACE:msg}"
++        #OPENSTACK_MESSAGE = "%{OPENSTACK_NORMAL}|%{OPENSTACK_TRACE}"
++        #OPENSTACK_SYSLOGLINE = "%{SYSLOG5424PRINUM}%{CISCOTIMESTAMP:syslog_ts} %{HOSTNAME:syslog5424_host} %{OPENSTACK_MESSAGE:os_message}"
++
++        for i in range(min(10000, len(data_line))):
++            _level = re.findall(OPENSTACK_LOGLEVEL, data_line[i])
++            _pid = re.findall(OPENSTACK_PID, data_line[i])
++            _timestamp = re.findall(OPENSTACK_TIMESTAMP, data_line[i])
++            
++            _message = data_line[i]
++
++            if not _level:
++                _level.append(None)
++            else:
++                _message = _message.replace(_level[0], '')
++            
++            if not _pid:
++                _pid.append(None)
++            else:
++                _message = _message.replace(_pid[0], '')
++            
++            if not _timestamp:
++                _timestamp.append(None)
++            else:
++                _message = _message.replace(_timestamp[0], '')
++            
++            _message = _message.strip()
++            
++
++            current_dict = Datum(
++                id = data_line[i][0:10], 
++                pid = _pid[0], 
++                timestamp = _timestamp[0], 
++                level = _level[0], 
++                message = _message, 
++                component = 1)
++            data_arr.append(current_dict)
++        
++
++        return data_arr
+\ No newline at end of file
+diff --git a/openstack_dashboard/dashboards/logmanagement/view/__init__.py b/openstack_dashboard/dashboards/logmanagement/view/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/openstack_dashboard/dashboards/logmanagement/view/panel.py b/openstack_dashboard/dashboards/logmanagement/view/panel.py
+new file mode 100644
+index 0000000..f01a66d
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/view/panel.py
+@@ -0,0 +1,30 @@
++# Copyright 2012 United States Government as represented by the
++# Administrator of the National Aeronautics and Space Administration.
++# All Rights Reserved.
++#
++# Copyright 2012 Nebula, Inc.
++#
++#    Licensed under the Apache License, Version 2.0 (the "License"); you may
++#    not use this file except in compliance with the License. You may obtain
++#    a copy of the License at
++#
++#         http://www.apache.org/licenses/LICENSE-2.0
++#
++#    Unless required by applicable law or agreed to in writing, software
++#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
++#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
++#    License for the specific language governing permissions and limitations
++#    under the License.
++
++from django.utils.translation import ugettext_lazy as _
++
++import horizon
++
++from openstack_dashboard.dashboards.logmanagement import dashboard
++
++
++class LogView(horizon.Panel):
++    name = _("Log View")
++    slug = 'view'
++
++dashboard.Logmanagement.register(LogView)
+diff --git a/openstack_dashboard/dashboards/logmanagement/view/tables.py b/openstack_dashboard/dashboards/logmanagement/view/tables.py
+new file mode 100644
+index 0000000..1255865
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/view/tables.py
+@@ -0,0 +1,40 @@
++# Licensed under the Apache License, Version 2.0 (the "License"); you may
++# not use this file except in compliance with the License. You may obtain
++# a copy of the License at
++#
++#      http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
++# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
++# License for the specific language governing permissions and limitations
++# under the License.
++
++from django.core.exceptions import ValidationError  # noqa
++from django.core.urlresolvers import reverse
++from django.template import defaultfilters as filters
++from django.utils.http import urlencode
++from django.utils.translation import ugettext_lazy as _
++from django.utils.translation import ungettext_lazy
++
++from openstack_auth import utils as auth_utils
++
++from horizon import exceptions
++from horizon import forms
++from horizon import tables
++from keystoneclient.exceptions import Conflict  # noqa
++
++from openstack_dashboard import api
++from openstack_dashboard import policy
++
++
++class LogTable(tables.DataTable):
++    timestamp =  tables.Column("timestamp", verbose_name=_("timestamp"))
++    project =  tables.Column("project", verbose_name=_("project"))
++    level =  tables.Column("level", verbose_name=_("level"))
++    resource =  tables.Column("resource", verbose_name=_("resource"))
++    message =  tables.Column("message", verbose_name=_("message"))
++
++    class Meta(object):
++        name = "LogTable"
++        verbose_name = _("LogTable")
+\ No newline at end of file
+diff --git a/openstack_dashboard/dashboards/logmanagement/view/templates/view/_common_horizontal_form.html b/openstack_dashboard/dashboards/logmanagement/view/templates/view/_common_horizontal_form.html
+new file mode 100644
+index 0000000..97f0ef9
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/view/templates/view/_common_horizontal_form.html
+@@ -0,0 +1,3 @@
++<div class="form-horizontal">
++  {% include "horizon/common/_horizontal_fields.html" %}
++</div>
+diff --git a/openstack_dashboard/dashboards/logmanagement/view/templates/view/_detail_overview.html b/openstack_dashboard/dashboards/logmanagement/view/templates/view/_detail_overview.html
+new file mode 100644
+index 0000000..a700c3d
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/view/templates/view/_detail_overview.html
+@@ -0,0 +1,19 @@
++{% load i18n  %}
++
++<h3>{% trans "Project Overview" %}</h3>
++
++<div class="info detail">
++  <h4>{% trans "Information" %}</h4>
++  <hr class="header_rule">
++  <dl class="dl-horizontal">
++    <dt>{% trans "Project Name" %}</dt>
++    <dd>{{ project.name }}</dd>
++    <dt>{% trans "Project ID" %}</dt>
++    <dd>{{ project.id }}</dd>
++    <dt>{% trans "Enabled" %}</dt>
++    <dd>{{ project.enabled }}</dd>
++    <dt>{% trans "Description" %}</dt>
++    <dd>{{ project.description|default:_("None") }}</dd>
++  </dl>
++</div>
++
+diff --git a/openstack_dashboard/dashboards/logmanagement/view/templates/view/detail.html b/openstack_dashboard/dashboards/logmanagement/view/templates/view/detail.html
+new file mode 100644
+index 0000000..8cb3590
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/view/templates/view/detail.html
+@@ -0,0 +1,16 @@
++{% extends 'base.html' %}
++{% load i18n %}
++{% block title %}{% trans "Project Details" %}{% endblock %}
++
++{% block page_header %}
++  {% include "horizon/common/_page_header.html" with title=page_title %}
++{% endblock page_header %}
++
++{% block main %}
++  <div class="row">
++    <div class="col-sm-12">
++      {% include "identity/projects/_detail_overview.html" %}
++    </div>
++  </div>
++{% endblock %}
++
+diff --git a/openstack_dashboard/dashboards/logmanagement/view/templates/view/index.html b/openstack_dashboard/dashboards/logmanagement/view/templates/view/index.html
+new file mode 100644
+index 0000000..611fdc8
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/view/templates/view/index.html
+@@ -0,0 +1,9 @@
++{% extends 'base.html' %}
++{% load i18n %}
++{% block title %}{% trans "Log" %}{% endblock %}
++
++{% block main %}
++
++ {{ table.render }}
++
++{% endblock %}
+diff --git a/openstack_dashboard/dashboards/logmanagement/view/templates/view/usage.html b/openstack_dashboard/dashboards/logmanagement/view/templates/view/usage.html
+new file mode 100644
+index 0000000..26988d0
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/view/templates/view/usage.html
+@@ -0,0 +1,14 @@
++{% extends 'base.html' %}
++{% load i18n sizeformat %}
++{% block title %}{% trans "Project Usage Overview" %}{% endblock %}
++
++{% block page_header %}
++    {% include "horizon/common/_domain_page_header.html" with title=page_title %}
++{% endblock %}
++
++{% block main %}
++  {% if simple_tenant_usage_enabled %}
++    {% include "horizon/common/_usage_summary.html" %}
++    {{ table.render }}
++  {% endif %}
++{% endblock %}
+diff --git a/openstack_dashboard/dashboards/logmanagement/view/urls.py b/openstack_dashboard/dashboards/logmanagement/view/urls.py
+new file mode 100644
+index 0000000..b670636
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/view/urls.py
+@@ -0,0 +1,28 @@
++# Copyright 2012 United States Government as represented by the
++# Administrator of the National Aeronautics and Space Administration.
++# All Rights Reserved.
++#
++# Copyright 2012 Nebula, Inc.
++#
++#    Licensed under the Apache License, Version 2.0 (the "License"); you may
++#    not use this file except in compliance with the License. You may obtain
++#    a copy of the License at
++#
++#         http://www.apache.org/licenses/LICENSE-2.0
++#
++#    Unless required by applicable law or agreed to in writing, software
++#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
++#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
++#    License for the specific language governing permissions and limitations
++#    under the License.
++
++from django.conf.urls import patterns
++from django.conf.urls import url
++
++from openstack_dashboard.dashboards.logmanagement.view import views
++
++
++urlpatterns = patterns(
++    '',
++    url(r'^$', views.IndexView.as_view(), name='index'),
++)
+diff --git a/openstack_dashboard/dashboards/logmanagement/view/views.py b/openstack_dashboard/dashboards/logmanagement/view/views.py
+new file mode 100644
+index 0000000..e608191
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logmanagement/view/views.py
+@@ -0,0 +1,130 @@
++# Copyright 2012 United States Government as represented by the
++# Administrator of the National Aeronautics and Space Administration.
++# All Rights Reserved.
++#
++# Copyright 2012 Nebula, Inc.
++#
++#    Licensed under the Apache License, Version 2.0 (the "License"); you may
++#    not use this file except in compliance with the License. You may obtain
++#    a copy of the License at
++#
++#         http://www.apache.org/licenses/LICENSE-2.0
++#
++#    Unless required by applicable law or agreed to in writing, software
++#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
++#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
++#    License for the specific language governing permissions and limitations
++#    under the License.
++
++import time
++import re
++import fileinput
++import os
++from collections import namedtuple
++
++from django.core.urlresolvers import reverse
++from django.utils.translation import ugettext_lazy as _
++from django.views import generic
++from django.conf import settings
++
++from horizon import exceptions
++from horizon import messages
++from horizon import tables
++from horizon import views
++from horizon.utils import memoized
++from horizon import workflows
++
++from openstack_dashboard import api
++from openstack_dashboard.api import keystone
++from openstack_dashboard import policy
++from openstack_dashboard import usage
++from openstack_dashboard.usage import quotas
++
++from openstack_dashboard.dashboards.logmanagement.view \
++    import tables as log_tables
++
++class IndexView(tables.DataTableView):
++    template_name = 'logmanagement/view/index.html'
++    page_title = _("Log Viewer")
++    table_class = log_tables.LogTable
++
++    def has_more_data(self, table):
++        return self._more
++
++    def get_openstack_resource_name(self, filename):
++        resouce_name = ''
++
++        resouce_name = filename
++
++        return resouce_name
++
++    def replace_coloredlog_format(self, text):
++        color = ['\033[95m', '\033[94m', '\033[92m', '\033[93m', '\033[91m', '\033[90m', '\033[0m', '\033[1m', '\033[4m']
++        for c in color:
++            text = text.replace(c, '')
++
++        if not color:
++            return ''
++        return str(color)
++
++    def parse_log_from_file(self, filename, log_path = '/var/log/apache2/'):
++        LogRow = namedtuple('logrow', 'timestamp message project resource pid id level')
++        data_arr = []
++        file_path = log_path + '/' + filename
++        if os.path.isfile(file_path):
++            with open(file_path) as f:
++                log_data = f.read()
++                data_line = log_data.split('\n')
++
++                OPENSTACK_TIMESTAMP = re.compile("\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.[0-9]{6}")
++                OPENSTACK_PID = re.compile("\s([0-9]+)?\s")
++                OPENSTACK_LOGLEVEL = re.compile("([D|d]ebug|DEBUG|[N|n]otice|NOTICE|[I|i]nfo|INFO|[W|w]arn?(?:ing)?|WARN?(?:ING)?|[E|e]rr?(?:or)?|ERR?(?:OR)?|[C|c]rit?(?:ical)?|CRIT?(?:ICAL)?|[F|f]atal|FATAL|[S|s]evere|SEVERE|[A|a]udit|AUDIT)")
++ 
++                for i in range(min(10, len(data_line))):
++                    current_line = self.replace_coloredlog_format(data_line[i])
++
++                    _level = re.findall(OPENSTACK_LOGLEVEL, current_line)
++                    _pid = re.findall(OPENSTACK_PID, current_line)
++                    _timestamp = re.findall(OPENSTACK_TIMESTAMP, current_line)
++                    
++                    _message = current_line
++
++                    if not _timestamp:
++                        break
++
++                    if not _level:
++                        _level.append(None)
++                    else:
++                        _message = _message.replace(_level[0], '')
++                    
++                    if not _pid:
++                        _pid.append(None)
++                    else:
++                        _message = _message.replace(_pid[0], '')
++                    
++                    _message = _message.strip()
++
++                    current_dict = LogRow(
++                        id = data_line[i][0:10], 
++                        pid = _pid[0], 
++                        timestamp = _timestamp[0], 
++                        level = _level[0], 
++                        message = _message, 
++                        resource = self.get_openstack_resource_name(filename),
++                        project = filename)
++                    data_arr.append(current_dict)
++        
++        return data_arr
++
++    def get_data(self):
++        data_arr = []
++        self._more = False
++
++        log_path = '/opt/stack/logs'
++        for filename in os.listdir(log_path):
++            if filename.endswith(".log"):
++
++                print "======================", filename
++                data_arr += self.parse_log_from_file(filename, log_path)
++
++        return data_arr
+\ No newline at end of file
+diff --git a/openstack_dashboard/enabled/_26_logmanagement.py b/openstack_dashboard/enabled/_26_logmanagement.py
+new file mode 100644
+index 0000000..267019a
+--- /dev/null
++++ b/openstack_dashboard/enabled/_26_logmanagement.py
+@@ -0,0 +1,8 @@
++# The slug of the dashboard to be added to HORIZON['dashboards']. Required.
++DASHBOARD = 'logmanagement'
++# If set to True, this dashboard will be set as the default dashboard.
++DEFAULT = False
++# A dictionary of exception classes to be added to HORIZON['exceptions'].
++ADD_EXCEPTIONS = {}
++# A list of applications to be added to INSTALLED_APPS.
++ADD_INSTALLED_APPS = ['openstack_dashboard.dashboards.logmanagement']
+-- 
+2.5.0
+

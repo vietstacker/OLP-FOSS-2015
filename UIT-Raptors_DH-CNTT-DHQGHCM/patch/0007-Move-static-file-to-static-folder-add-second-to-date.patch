@@ -1,0 +1,1534 @@
+From c1162ea11c753a17512713b230c083d134b4036a Mon Sep 17 00:00:00 2001
+From: Van-Duyet Le <lvduit08@gmail.com>
+Date: Thu, 26 Nov 2015 15:33:40 +0700
+Subject: [PATCH 7/8] Move static file to static folder, add second to datetime
+ picker
+
+---
+ .../logmanagement/view/templates/view/index.html   |  19 +-
+ .../dashboards/logmanagement/view/views.py         |  84 +++--
+ .../bootstrap-datetimepicker/.gitattributes        |  63 ++++
+ .../bootstrap-datetimepicker/.gitignore            |  12 +
+ .../bootstrap-datetimepicker/.jscs.json            |  62 ++++
+ .../bootstrap-datetimepicker/.npmignore            |  16 +
+ .../bootstrap-datetimepicker/.travis.yml           |   9 +
+ .../css/bootstrap-datetimepicker-standalone.css    | 103 ++++++
+ .../css/bootstrap-datetimepicker.css               | 373 +++++++++++++++++++++
+ .../css/bootstrap-datetimepicker.min.css           |   5 +
+ .../js/bootstrap-datetimepicker.min.js             |   9 +
+ .../logmanagement/horizon-logmanagement-stat.png   | Bin 22277 -> 18522 bytes
+ .../static/dashboard/logmanagement/moment.min.js   |   7 +
+ 13 files changed, 707 insertions(+), 55 deletions(-)
+ create mode 100644 openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/.gitattributes
+ create mode 100644 openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/.gitignore
+ create mode 100644 openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/.jscs.json
+ create mode 100644 openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/.npmignore
+ create mode 100644 openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/.travis.yml
+ create mode 100644 openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/css/bootstrap-datetimepicker-standalone.css
+ create mode 100644 openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/css/bootstrap-datetimepicker.css
+ create mode 100644 openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/css/bootstrap-datetimepicker.min.css
+ create mode 100644 openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/js/bootstrap-datetimepicker.min.js
+ create mode 100644 openstack_dashboard/static/dashboard/logmanagement/moment.min.js
+
+diff --git a/openstack_dashboard/dashboards/logmanagement/view/templates/view/index.html b/openstack_dashboard/dashboards/logmanagement/view/templates/view/index.html
+index 96ee891..0e55c3c 100644
+--- a/openstack_dashboard/dashboards/logmanagement/view/templates/view/index.html
++++ b/openstack_dashboard/dashboards/logmanagement/view/templates/view/index.html
+@@ -4,20 +4,15 @@
+ 
+ {% block main %}
+ 
+-<link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.37/css/bootstrap-datetimepicker.min.css">
+-
+-<script type="text/javascript" src="//netdna.bootstrapcdn.com/twitter-bootstrap/2.2.2/js/bootstrap.min.js"></script>
+-<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/moment.js/2.10.6/moment.min.js"></script>
+-<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0-alpha/js/bootstrap.min.js"></script>
+-<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.37/js/bootstrap-datetimepicker.min.js"></script>
++<link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}dashboard/logmanagement/bootstrap-datetimepicker/css/bootstrap-datetimepicker.min.css">
++<script type="text/javascript" src="{{ STATIC_URL }}dashboard/logmanagement/moment.min.js"></script>
++<script type="text/javascript" src="{{ STATIC_URL }}dashboard/logmanagement/bootstrap-datetimepicker/js/bootstrap-datetimepicker.min.js"></script>
+ 
+ <script type="text/javascript">
+ 
+ $(document).ready(function() {
+-	$('#datetimepicker1').datetimepicker({
+-    });
+-
+-    $('#datetimepicker2').datetimepicker({
++    $('#start_date, #end_date').datetimepicker({
++        format: 'dd/MM/yyyy hh:mm:ss'
+     });
+ });
+ </script>
+@@ -63,7 +58,7 @@ $(document).ready(function() {
+             <div class="form-group">
+               <label class="col-md-4 control-label">Start</label>
+               <div class="col-md-8">
+-                <input id="datetimepicker1" data-format="dd/MM/yyyy hh:mm:ss" type="text" class="form-control" />
++                <input id="start_date" data-format="dd/MM/yyyy hh:mm:ss" type="text" class="form-control" />
+               </div>
+             </div>
+         </div>
+@@ -71,7 +66,7 @@ $(document).ready(function() {
+             <div class="form-group">
+               <label class="col-md-4 control-label">Start</label>
+               <div class="col-md-8">
+-                <input id="datetimepicker2" data-format="dd/MM/yyyy hh:mm:ss" type="datetime" class="form-control" />
++                <input id="end_date" data-format="dd/MM/yyyy hh:mm:ss" data-action="showSeconds" type="datetime" class="form-control" />
+               </div>
+             </div>
+         </div>
+diff --git a/openstack_dashboard/dashboards/logmanagement/view/views.py b/openstack_dashboard/dashboards/logmanagement/view/views.py
+index e016be0..b5c941e 100644
+--- a/openstack_dashboard/dashboards/logmanagement/view/views.py
++++ b/openstack_dashboard/dashboards/logmanagement/view/views.py
+@@ -23,32 +23,6 @@ from openstack_dashboard.dashboards.logmanagement import util
+ from openstack_dashboard.dashboards.logmanagement.view \
+     import tables as log_tables
+ 
+-islab_log_path = '/opt/stack/logs'
+-with open(islab_log_path + '/horizon.log') as f:
+-    islab_data = f.read()
+-
+-islab_data_line = islab_data.split('\n')
+-islab_data_arr = []
+-
+-for i in range(len(islab_data_line)):
+-    _group = re.match("([A-Z]+)\:", islab_data_line[i][27:])
+-    if  _group and _group.group(1):
+-        islab_data_arr.append({'date': islab_data_line[i][0:10], 'time': islab_data_line[i][11:19], 'type': _group.group(1), 'content': islab_data_line[i][27:], 'count': 1})
+-islab_data_frame = pd.DataFrame(data=islab_data_arr)
+-
+-islab_data_frame_group = islab_data_frame.groupby(['date', 'type']).agg(np.sum)
+-
+-islab_data_frame_plot = islab_data_frame_group.unstack().plot(
+-    kind='bar',
+-    stacked=True,
+-    layout=("Date", "Number"), 
+-    figsize=(10, 5)
+-)
+-islab_data_frame_plot.legend(loc=1, borderaxespad=0.)
+-
+-fig = islab_data_frame_plot.get_figure()
+-fig.savefig(getattr(settings, 'ROOT_PATH') + "/static/dashboard/logmanagement/horizon-logmanagement-stat.png")
+-
+ class IndexView(tables.DataTableView):
+     template_name = 'logmanagement/view/index.html'
+     page_title = _("Log Viewer")
+@@ -102,6 +76,44 @@ class IndexView(tables.DataTableView):
+             return ''
+         return str(text)
+ 
++
++    def get_date(self, datestring):
++        return datestring[:10]
++
++    def repair_data_for_pandas_chart(self):
++        pass
++
++    def render_pandas_chart(self):
++        log_path = '/opt/logs/'
++        with open(log_path + '/key.log') as f:
++            data = f.read()
++
++        data_line = data.split('\n')
++        data_arr = []
++
++        for i in range(len(data_line)):
++            _group = re.match("([A-Z]+)\:", data_line[i][27:])
++            if  _group and _group.group(1):
++                data_arr.append({'date': data_line[i][0:10], 'time': data_line[i][11:19], 'level': _group.group(1), 'content': data_line[i][27:], 'count': 1})
++        data_frame = pd.DataFrame(data=data_arr)
++
++        ## Render stat chart
++        data_frame = pd.DataFrame(data=data_arr)
++        data_frame_group = data_frame.groupby(['date','level']).agg(np.sum)
++        data_frame_plot = data_frame_group.unstack().plot(
++            kind='bar',
++            stacked=True,
++            #layout=("Date", "Number"), 
++            figsize=(10, 5)
++        )
++        data_frame_plot.legend(loc=1, borderaxespad=0.)
++        fig = data_frame_plot.get_figure()
++
++        # NOTE: Generate chart to images
++        fig.savefig(getattr(settings, 'ROOT_PATH') + "/static/dashboard/logmanagement/horizon-logmanagement-stat.png")
++
++
++
+     def parse_log_from_file(self, filename, log_path = '/var/stack/logs/'):
+         LogRow = namedtuple('logrow', 'timestamp date message project resource pid id level')
+         data_arr = []
+@@ -127,6 +139,7 @@ class IndexView(tables.DataTableView):
+                     _message = current_line
+ 
+                     if not _timestamp:
++                        # Skip if not in log line
+                         continue
+                     else:
+                         _message = _message.replace(_timestamp[0], '')
+@@ -152,11 +165,11 @@ class IndexView(tables.DataTableView):
+                         id = data_line[i][0:10], 
+                         pid = _pid[0], 
+                         timestamp = _timestamp[0], 
+-                        date = get_date(_timestamp[0]),
++                        date = self.get_date(_timestamp[0]),
+                         level = _level[0], 
+                         message = _message, 
+                         resource = _resource[0],
+-                        project = filename)
++                        project = self.get_project_name_from_log_file(filename))
+                     data_arr.append(current_dict)
+         
+         return data_arr
+@@ -172,19 +185,4 @@ class IndexView(tables.DataTableView):
+             if filename.endswith(".log"):
+                 data_arr += self.parse_log_from_file(filename, log_path)
+ 
+-        islab_data_frame = pd.DataFrame(data=data_arr)
+-        islab_data_frame_group = islab_data_frame.groupby(['level']).agg(np.sum)
+-        islab_data_frame_plot = islab_data_frame_group.unstack().plot(
+-            kind='bar',
+-            stacked=True,
+-            layout=("Date", "Number"), 
+-            figsize=(10, 5)
+-        )
+-        islab_data_frame_plot.legend(loc=1, borderaxespad=0.)
+-
+-        fig = islab_data_frame_plot.get_figure()
+-
+-        # NOTE: Generate chart to images
+-        fig.savefig(getattr(settings, 'ROOT_PATH') + "/static/dashboard/logmanagement/horizon-logmanagement-stat.png")
+-
+         return data_arr
+\ No newline at end of file
+diff --git a/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/.gitattributes b/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/.gitattributes
+new file mode 100644
+index 0000000..1ff0c42
+--- /dev/null
++++ b/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/.gitattributes
+@@ -0,0 +1,63 @@
++###############################################################################
++# Set default behavior to automatically normalize line endings.
++###############################################################################
++* text=auto
++
++###############################################################################
++# Set default behavior for command prompt diff.
++#
++# This is need for earlier builds of msysgit that does not have it on by
++# default for csharp files.
++# Note: This is only used by command line
++###############################################################################
++#*.cs     diff=csharp
++
++###############################################################################
++# Set the merge driver for project and solution files
++#
++# Merging from the command prompt will add diff markers to the files if there
++# are conflicts (Merging from VS is not affected by the settings below, in VS
++# the diff markers are never inserted). Diff markers may cause the following 
++# file extensions to fail to load in VS. An alternative would be to treat
++# these files as binary and thus will always conflict and require user
++# intervention with every merge. To do so, just uncomment the entries below
++###############################################################################
++#*.sln       merge=binary
++#*.csproj    merge=binary
++#*.vbproj    merge=binary
++#*.vcxproj   merge=binary
++#*.vcproj    merge=binary
++#*.dbproj    merge=binary
++#*.fsproj    merge=binary
++#*.lsproj    merge=binary
++#*.wixproj   merge=binary
++#*.modelproj merge=binary
++#*.sqlproj   merge=binary
++#*.wwaproj   merge=binary
++
++###############################################################################
++# behavior for image files
++#
++# image files are treated as binary by default.
++###############################################################################
++#*.jpg   binary
++#*.png   binary
++#*.gif   binary
++
++###############################################################################
++# diff behavior for common document formats
++# 
++# Convert binary document formats to text before diffing them. This feature
++# is only available from the command line. Turn it on by uncommenting the 
++# entries below.
++###############################################################################
++#*.doc   diff=astextplain
++#*.DOC   diff=astextplain
++#*.docx  diff=astextplain
++#*.DOCX  diff=astextplain
++#*.dot   diff=astextplain
++#*.DOT   diff=astextplain
++#*.pdf   diff=astextplain
++#*.PDF   diff=astextplain
++#*.rtf   diff=astextplain
++#*.RTF   diff=astextplain
+diff --git a/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/.gitignore b/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/.gitignore
+new file mode 100644
+index 0000000..f118199
+--- /dev/null
++++ b/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/.gitignore
+@@ -0,0 +1,12 @@
++bower_components
++node_modules
++.idea
++.vs
++obj
++bin
++site/
++*.user
++*.csproj
++*.sln
++*.nupkg
++index.html
+\ No newline at end of file
+diff --git a/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/.jscs.json b/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/.jscs.json
+new file mode 100644
+index 0000000..8af2b61
+--- /dev/null
++++ b/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/.jscs.json
+@@ -0,0 +1,62 @@
++{
++    "requireCurlyBraces": [
++        "if",
++        "else",
++        "for",
++        "while",
++        "do",
++        "try",
++        "catch"
++    ],
++    "requireSpaceAfterKeywords": [
++        "if",
++        "else",
++        "for",
++        "while",
++        "do",
++        "switch",
++        "return",
++        "try",
++        "catch"
++    ],
++    "requireSpaceBeforeBlockStatements": true,
++    "requireParenthesesAroundIIFE": true,
++    "requireSpacesInConditionalExpression": true,
++    "requireSpacesInAnonymousFunctionExpression": {
++        "beforeOpeningRoundBrace": true,
++        "beforeOpeningCurlyBrace": true
++    },
++    "requireSpacesInNamedFunctionExpression": {
++        "beforeOpeningCurlyBrace": true
++    },
++    "disallowSpacesInNamedFunctionExpression": {
++        "beforeOpeningRoundBrace": true
++    },
++    "requireMultipleVarDecl": "onevar",
++    "requireBlocksOnNewline": true,
++    "disallowPaddingNewlinesInBlocks": true,
++    "disallowEmptyBlocks": true,
++    "disallowSpacesInsideObjectBrackets": true,
++    "disallowSpacesInsideArrayBrackets": true,
++    "disallowSpacesInsideParentheses": true,
++    "requireCommaBeforeLineBreak": true,
++    "disallowSpaceAfterPrefixUnaryOperators": ["++", "--", "+", "-", "~", "!"],
++    "disallowSpaceBeforePostfixUnaryOperators": ["++", "--"],
++    "requireSpaceBeforeBinaryOperators": [
++        "=", "+=", "-=", "*=", "/=", "%=", "<<=", ">>=", ">>>=",
++        "&=", "|=", "^=",
++
++        "+", "-", "*", "/", "%", "<<", ">>", ">>>", "&",
++        "|", "^", "&&", "||", "===", "==", ">=",
++        "<=", "<", ">", "!=", "!=="
++    ],
++    "requireSpaceAfterBinaryOperators": true,
++    "requireCamelCaseOrUpperCaseIdentifiers": "ignoreProperties",
++    "disallowKeywords": ["with"],
++    "disallowMultipleLineStrings": true,
++    "validateIndentation": 4,
++    "disallowTrailingWhitespace": true,
++    "disallowTrailingComma": true,
++    "requireLineFeedAtFileEnd": true,
++    "requireCapitalizedConstructors": true
++}
+diff --git a/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/.npmignore b/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/.npmignore
+new file mode 100644
+index 0000000..7d59916
+--- /dev/null
++++ b/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/.npmignore
+@@ -0,0 +1,16 @@
++/assets
++/_includes
++/_layouts
++/.gitignore
++/node_modules
++/Makefile
++/test
++*.log
++*.swp
++*~
++*.tgz
++/site
++*.user
++*.csproj
++*.sln
++*.nupkg
+\ No newline at end of file
+diff --git a/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/.travis.yml b/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/.travis.yml
+new file mode 100644
+index 0000000..a716cb3
+--- /dev/null
++++ b/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/.travis.yml
+@@ -0,0 +1,9 @@
++language: node_js
++sudo: false
++node_js:
++  - 0.10
++
++before_script:
++  - npm install -g grunt-cli
++
++script: grunt build:travis
+diff --git a/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/css/bootstrap-datetimepicker-standalone.css b/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/css/bootstrap-datetimepicker-standalone.css
+new file mode 100644
+index 0000000..49e3ea6
+--- /dev/null
++++ b/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/css/bootstrap-datetimepicker-standalone.css
+@@ -0,0 +1,103 @@
++/*!
++ * Datetimepicker for Bootstrap 3
++ * version : 4.17.37
++ * https://github.com/Eonasdan/bootstrap-datetimepicker/
++ */
++@font-face {
++    font-family: 'Glyphicons Halflings';
++    src: url('../fonts/glyphicons-halflings-regular.eot');
++    src: url('../fonts/glyphicons-halflings-regular.eot?#iefix') format('embedded-opentype'), url('../fonts/glyphicons-halflings-regular.woff2') format('woff2'), url('../fonts/glyphicons-halflings-regular.woff') format('woff'), url('../fonts/glyphicons-halflings-regular.ttf') format('truetype'), url('../fonts/glyphicons-halflings-regular.svg#glyphicons_halflingsregular') format('svg');
++}
++
++.glyphicon {
++    position: relative;
++    top: 1px;
++    display: inline-block;
++    font-family: 'Glyphicons Halflings';
++    font-style: normal;
++    font-weight: normal;
++    line-height: 1;
++    -webkit-font-smoothing: antialiased;
++    -moz-osx-font-smoothing: grayscale;
++}
++
++.glyphicon-time:before {
++    content: "\e023";
++}
++
++.glyphicon-chevron-left:before {
++    content: "\e079";
++}
++
++.glyphicon-chevron-right:before {
++    content: "\e080";
++}
++
++.glyphicon-chevron-up:before {
++    content: "\e113";
++}
++
++.glyphicon-chevron-down:before {
++    content: "\e114";
++}
++
++.glyphicon-calendar:before {
++    content: "\e109";
++}
++
++.btn {
++    display: inline-block;
++    padding: 6px 12px;
++    margin-bottom: 0;
++    font-size: 14px;
++    font-weight: normal;
++    line-height: 1.42857143;
++    text-align: center;
++    white-space: nowrap;
++    vertical-align: middle;
++    -ms-touch-action: manipulation;
++    touch-action: manipulation;
++    cursor: pointer;
++    -webkit-user-select: none;
++    -moz-user-select: none;
++    -ms-user-select: none;
++    user-select: none;
++    background-image: none;
++    border: 1px solid transparent;
++    border-radius: 4px;
++}
++
++.collapse {
++    display: none;
++}
++
++    .collapse.in {
++        display: block;
++    }
++
++.dropdown-menu {
++    position: absolute;
++    left: 0;
++    z-index: 1000;
++    display: none;
++    float: left;
++    min-width: 160px;
++    padding: 5px 0;
++    margin: 2px 0 0;
++    font-size: 14px;
++    text-align: left;
++    list-style: none;
++    background-color: #fff;
++    -webkit-background-clip: padding-box;
++    background-clip: padding-box;
++    border: 1px solid #ccc;
++    border: 1px solid rgba(0, 0, 0, .15);
++    border-radius: 4px;
++    -webkit-box-shadow: 0 6px 12px rgba(0, 0, 0, .175);
++    box-shadow: 0 6px 12px rgba(0, 0, 0, .175);
++}
++
++.list-unstyled {
++    padding-left: 0;
++    list-style: none;
++}
+\ No newline at end of file
+diff --git a/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/css/bootstrap-datetimepicker.css b/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/css/bootstrap-datetimepicker.css
+new file mode 100644
+index 0000000..b8bf43b
+--- /dev/null
++++ b/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/css/bootstrap-datetimepicker.css
+@@ -0,0 +1,373 @@
++/*!
++ * Datetimepicker for Bootstrap 3
++ * version : 4.17.37
++ * https://github.com/Eonasdan/bootstrap-datetimepicker/
++ */
++.bootstrap-datetimepicker-widget {
++  list-style: none;
++}
++.bootstrap-datetimepicker-widget.dropdown-menu {
++  margin: 2px 0;
++  padding: 4px;
++  width: 19em;
++}
++@media (min-width: 768px) {
++  .bootstrap-datetimepicker-widget.dropdown-menu.timepicker-sbs {
++    width: 38em;
++  }
++}
++@media (min-width: 992px) {
++  .bootstrap-datetimepicker-widget.dropdown-menu.timepicker-sbs {
++    width: 38em;
++  }
++}
++@media (min-width: 1200px) {
++  .bootstrap-datetimepicker-widget.dropdown-menu.timepicker-sbs {
++    width: 38em;
++  }
++}
++.bootstrap-datetimepicker-widget.dropdown-menu:before,
++.bootstrap-datetimepicker-widget.dropdown-menu:after {
++  content: '';
++  display: inline-block;
++  position: absolute;
++}
++.bootstrap-datetimepicker-widget.dropdown-menu.bottom:before {
++  border-left: 7px solid transparent;
++  border-right: 7px solid transparent;
++  border-bottom: 7px solid #cccccc;
++  border-bottom-color: rgba(0, 0, 0, 0.2);
++  top: -7px;
++  left: 7px;
++}
++.bootstrap-datetimepicker-widget.dropdown-menu.bottom:after {
++  border-left: 6px solid transparent;
++  border-right: 6px solid transparent;
++  border-bottom: 6px solid white;
++  top: -6px;
++  left: 8px;
++}
++.bootstrap-datetimepicker-widget.dropdown-menu.top:before {
++  border-left: 7px solid transparent;
++  border-right: 7px solid transparent;
++  border-top: 7px solid #cccccc;
++  border-top-color: rgba(0, 0, 0, 0.2);
++  bottom: -7px;
++  left: 6px;
++}
++.bootstrap-datetimepicker-widget.dropdown-menu.top:after {
++  border-left: 6px solid transparent;
++  border-right: 6px solid transparent;
++  border-top: 6px solid white;
++  bottom: -6px;
++  left: 7px;
++}
++.bootstrap-datetimepicker-widget.dropdown-menu.pull-right:before {
++  left: auto;
++  right: 6px;
++}
++.bootstrap-datetimepicker-widget.dropdown-menu.pull-right:after {
++  left: auto;
++  right: 7px;
++}
++.bootstrap-datetimepicker-widget .list-unstyled {
++  margin: 0;
++}
++.bootstrap-datetimepicker-widget a[data-action] {
++  padding: 6px 0;
++}
++.bootstrap-datetimepicker-widget a[data-action]:active {
++  box-shadow: none;
++}
++.bootstrap-datetimepicker-widget .timepicker-hour,
++.bootstrap-datetimepicker-widget .timepicker-minute,
++.bootstrap-datetimepicker-widget .timepicker-second {
++  width: 54px;
++  font-weight: bold;
++  font-size: 1.2em;
++  margin: 0;
++}
++.bootstrap-datetimepicker-widget button[data-action] {
++  padding: 6px;
++}
++.bootstrap-datetimepicker-widget .btn[data-action="incrementHours"]::after {
++  position: absolute;
++  width: 1px;
++  height: 1px;
++  margin: -1px;
++  padding: 0;
++  overflow: hidden;
++  clip: rect(0, 0, 0, 0);
++  border: 0;
++  content: "Increment Hours";
++}
++.bootstrap-datetimepicker-widget .btn[data-action="incrementMinutes"]::after {
++  position: absolute;
++  width: 1px;
++  height: 1px;
++  margin: -1px;
++  padding: 0;
++  overflow: hidden;
++  clip: rect(0, 0, 0, 0);
++  border: 0;
++  content: "Increment Minutes";
++}
++.bootstrap-datetimepicker-widget .btn[data-action="decrementHours"]::after {
++  position: absolute;
++  width: 1px;
++  height: 1px;
++  margin: -1px;
++  padding: 0;
++  overflow: hidden;
++  clip: rect(0, 0, 0, 0);
++  border: 0;
++  content: "Decrement Hours";
++}
++.bootstrap-datetimepicker-widget .btn[data-action="decrementMinutes"]::after {
++  position: absolute;
++  width: 1px;
++  height: 1px;
++  margin: -1px;
++  padding: 0;
++  overflow: hidden;
++  clip: rect(0, 0, 0, 0);
++  border: 0;
++  content: "Decrement Minutes";
++}
++.bootstrap-datetimepicker-widget .btn[data-action="showHours"]::after {
++  position: absolute;
++  width: 1px;
++  height: 1px;
++  margin: -1px;
++  padding: 0;
++  overflow: hidden;
++  clip: rect(0, 0, 0, 0);
++  border: 0;
++  content: "Show Hours";
++}
++.bootstrap-datetimepicker-widget .btn[data-action="showMinutes"]::after {
++  position: absolute;
++  width: 1px;
++  height: 1px;
++  margin: -1px;
++  padding: 0;
++  overflow: hidden;
++  clip: rect(0, 0, 0, 0);
++  border: 0;
++  content: "Show Minutes";
++}
++.bootstrap-datetimepicker-widget .btn[data-action="togglePeriod"]::after {
++  position: absolute;
++  width: 1px;
++  height: 1px;
++  margin: -1px;
++  padding: 0;
++  overflow: hidden;
++  clip: rect(0, 0, 0, 0);
++  border: 0;
++  content: "Toggle AM/PM";
++}
++.bootstrap-datetimepicker-widget .btn[data-action="clear"]::after {
++  position: absolute;
++  width: 1px;
++  height: 1px;
++  margin: -1px;
++  padding: 0;
++  overflow: hidden;
++  clip: rect(0, 0, 0, 0);
++  border: 0;
++  content: "Clear the picker";
++}
++.bootstrap-datetimepicker-widget .btn[data-action="today"]::after {
++  position: absolute;
++  width: 1px;
++  height: 1px;
++  margin: -1px;
++  padding: 0;
++  overflow: hidden;
++  clip: rect(0, 0, 0, 0);
++  border: 0;
++  content: "Set the date to today";
++}
++.bootstrap-datetimepicker-widget .picker-switch {
++  text-align: center;
++}
++.bootstrap-datetimepicker-widget .picker-switch::after {
++  position: absolute;
++  width: 1px;
++  height: 1px;
++  margin: -1px;
++  padding: 0;
++  overflow: hidden;
++  clip: rect(0, 0, 0, 0);
++  border: 0;
++  content: "Toggle Date and Time Screens";
++}
++.bootstrap-datetimepicker-widget .picker-switch td {
++  padding: 0;
++  margin: 0;
++  height: auto;
++  width: auto;
++  line-height: inherit;
++}
++.bootstrap-datetimepicker-widget .picker-switch td span {
++  line-height: 2.5;
++  height: 2.5em;
++  width: 100%;
++}
++.bootstrap-datetimepicker-widget table {
++  width: 100%;
++  margin: 0;
++}
++.bootstrap-datetimepicker-widget table td,
++.bootstrap-datetimepicker-widget table th {
++  text-align: center;
++  border-radius: 4px;
++}
++.bootstrap-datetimepicker-widget table th {
++  height: 20px;
++  line-height: 20px;
++  width: 20px;
++}
++.bootstrap-datetimepicker-widget table th.picker-switch {
++  width: 145px;
++}
++.bootstrap-datetimepicker-widget table th.disabled,
++.bootstrap-datetimepicker-widget table th.disabled:hover {
++  background: none;
++  color: #777777;
++  cursor: not-allowed;
++}
++.bootstrap-datetimepicker-widget table th.prev::after {
++  position: absolute;
++  width: 1px;
++  height: 1px;
++  margin: -1px;
++  padding: 0;
++  overflow: hidden;
++  clip: rect(0, 0, 0, 0);
++  border: 0;
++  content: "Previous Month";
++}
++.bootstrap-datetimepicker-widget table th.next::after {
++  position: absolute;
++  width: 1px;
++  height: 1px;
++  margin: -1px;
++  padding: 0;
++  overflow: hidden;
++  clip: rect(0, 0, 0, 0);
++  border: 0;
++  content: "Next Month";
++}
++.bootstrap-datetimepicker-widget table thead tr:first-child th {
++  cursor: pointer;
++}
++.bootstrap-datetimepicker-widget table thead tr:first-child th:hover {
++  background: #eeeeee;
++}
++.bootstrap-datetimepicker-widget table td {
++  height: 54px;
++  line-height: 54px;
++  width: 54px;
++}
++.bootstrap-datetimepicker-widget table td.cw {
++  font-size: .8em;
++  height: 20px;
++  line-height: 20px;
++  color: #777777;
++}
++.bootstrap-datetimepicker-widget table td.day {
++  height: 20px;
++  line-height: 20px;
++  width: 20px;
++}
++.bootstrap-datetimepicker-widget table td.day:hover,
++.bootstrap-datetimepicker-widget table td.hour:hover,
++.bootstrap-datetimepicker-widget table td.minute:hover,
++.bootstrap-datetimepicker-widget table td.second:hover {
++  background: #eeeeee;
++  cursor: pointer;
++}
++.bootstrap-datetimepicker-widget table td.old,
++.bootstrap-datetimepicker-widget table td.new {
++  color: #777777;
++}
++.bootstrap-datetimepicker-widget table td.today {
++  position: relative;
++}
++.bootstrap-datetimepicker-widget table td.today:before {
++  content: '';
++  display: inline-block;
++  border: solid transparent;
++  border-width: 0 0 7px 7px;
++  border-bottom-color: #337ab7;
++  border-top-color: rgba(0, 0, 0, 0.2);
++  position: absolute;
++  bottom: 4px;
++  right: 4px;
++}
++.bootstrap-datetimepicker-widget table td.active,
++.bootstrap-datetimepicker-widget table td.active:hover {
++  background-color: #337ab7;
++  color: #ffffff;
++  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.25);
++}
++.bootstrap-datetimepicker-widget table td.active.today:before {
++  border-bottom-color: #fff;
++}
++.bootstrap-datetimepicker-widget table td.disabled,
++.bootstrap-datetimepicker-widget table td.disabled:hover {
++  background: none;
++  color: #777777;
++  cursor: not-allowed;
++}
++.bootstrap-datetimepicker-widget table td span {
++  display: inline-block;
++  width: 54px;
++  height: 54px;
++  line-height: 54px;
++  margin: 2px 1.5px;
++  cursor: pointer;
++  border-radius: 4px;
++}
++.bootstrap-datetimepicker-widget table td span:hover {
++  background: #eeeeee;
++}
++.bootstrap-datetimepicker-widget table td span.active {
++  background-color: #337ab7;
++  color: #ffffff;
++  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.25);
++}
++.bootstrap-datetimepicker-widget table td span.old {
++  color: #777777;
++}
++.bootstrap-datetimepicker-widget table td span.disabled,
++.bootstrap-datetimepicker-widget table td span.disabled:hover {
++  background: none;
++  color: #777777;
++  cursor: not-allowed;
++}
++.bootstrap-datetimepicker-widget.usetwentyfour td.hour {
++  height: 27px;
++  line-height: 27px;
++}
++.bootstrap-datetimepicker-widget.wider {
++  width: 21em;
++}
++.bootstrap-datetimepicker-widget .datepicker-decades .decade {
++  line-height: 1.8em !important;
++}
++.input-group.date .input-group-addon {
++  cursor: pointer;
++}
++.sr-only {
++  position: absolute;
++  width: 1px;
++  height: 1px;
++  margin: -1px;
++  padding: 0;
++  overflow: hidden;
++  clip: rect(0, 0, 0, 0);
++  border: 0;
++}
+diff --git a/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/css/bootstrap-datetimepicker.min.css b/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/css/bootstrap-datetimepicker.min.css
+new file mode 100644
+index 0000000..63c2a3a
+--- /dev/null
++++ b/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/css/bootstrap-datetimepicker.min.css
+@@ -0,0 +1,5 @@
++/*!
++ * Datetimepicker for Bootstrap 3
++ * version : 4.17.37
++ * https://github.com/Eonasdan/bootstrap-datetimepicker/
++ */.bootstrap-datetimepicker-widget{list-style:none}.bootstrap-datetimepicker-widget.dropdown-menu{margin:2px 0;padding:4px;width:19em}@media (min-width:768px){.bootstrap-datetimepicker-widget.dropdown-menu.timepicker-sbs{width:38em}}@media (min-width:992px){.bootstrap-datetimepicker-widget.dropdown-menu.timepicker-sbs{width:38em}}@media (min-width:1200px){.bootstrap-datetimepicker-widget.dropdown-menu.timepicker-sbs{width:38em}}.bootstrap-datetimepicker-widget.dropdown-menu:before,.bootstrap-datetimepicker-widget.dropdown-menu:after{content:'';display:inline-block;position:absolute}.bootstrap-datetimepicker-widget.dropdown-menu.bottom:before{border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:7px solid #ccc;border-bottom-color:rgba(0,0,0,0.2);top:-7px;left:7px}.bootstrap-datetimepicker-widget.dropdown-menu.bottom:after{border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:6px solid white;top:-6px;left:8px}.bootstrap-datetimepicker-widget.dropdown-menu.top:before{border-left:7px solid transparent;border-right:7px solid transparent;border-top:7px solid #ccc;border-top-color:rgba(0,0,0,0.2);bottom:-7px;left:6px}.bootstrap-datetimepicker-widget.dropdown-menu.top:after{border-left:6px solid transparent;border-right:6px solid transparent;border-top:6px solid white;bottom:-6px;left:7px}.bootstrap-datetimepicker-widget.dropdown-menu.pull-right:before{left:auto;right:6px}.bootstrap-datetimepicker-widget.dropdown-menu.pull-right:after{left:auto;right:7px}.bootstrap-datetimepicker-widget .list-unstyled{margin:0}.bootstrap-datetimepicker-widget a[data-action]{padding:6px 0}.bootstrap-datetimepicker-widget a[data-action]:active{box-shadow:none}.bootstrap-datetimepicker-widget .timepicker-hour,.bootstrap-datetimepicker-widget .timepicker-minute,.bootstrap-datetimepicker-widget .timepicker-second{width:54px;font-weight:bold;font-size:1.2em;margin:0}.bootstrap-datetimepicker-widget button[data-action]{padding:6px}.bootstrap-datetimepicker-widget .btn[data-action="incrementHours"]::after{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0, 0, 0, 0);border:0;content:"Increment Hours"}.bootstrap-datetimepicker-widget .btn[data-action="incrementMinutes"]::after{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0, 0, 0, 0);border:0;content:"Increment Minutes"}.bootstrap-datetimepicker-widget .btn[data-action="decrementHours"]::after{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0, 0, 0, 0);border:0;content:"Decrement Hours"}.bootstrap-datetimepicker-widget .btn[data-action="decrementMinutes"]::after{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0, 0, 0, 0);border:0;content:"Decrement Minutes"}.bootstrap-datetimepicker-widget .btn[data-action="showHours"]::after{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0, 0, 0, 0);border:0;content:"Show Hours"}.bootstrap-datetimepicker-widget .btn[data-action="showMinutes"]::after{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0, 0, 0, 0);border:0;content:"Show Minutes"}.bootstrap-datetimepicker-widget .btn[data-action="togglePeriod"]::after{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0, 0, 0, 0);border:0;content:"Toggle AM/PM"}.bootstrap-datetimepicker-widget .btn[data-action="clear"]::after{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0, 0, 0, 0);border:0;content:"Clear the picker"}.bootstrap-datetimepicker-widget .btn[data-action="today"]::after{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0, 0, 0, 0);border:0;content:"Set the date to today"}.bootstrap-datetimepicker-widget .picker-switch{text-align:center}.bootstrap-datetimepicker-widget .picker-switch::after{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0, 0, 0, 0);border:0;content:"Toggle Date and Time Screens"}.bootstrap-datetimepicker-widget .picker-switch td{padding:0;margin:0;height:auto;width:auto;line-height:inherit}.bootstrap-datetimepicker-widget .picker-switch td span{line-height:2.5;height:2.5em;width:100%}.bootstrap-datetimepicker-widget table{width:100%;margin:0}.bootstrap-datetimepicker-widget table td,.bootstrap-datetimepicker-widget table th{text-align:center;border-radius:4px}.bootstrap-datetimepicker-widget table th{height:20px;line-height:20px;width:20px}.bootstrap-datetimepicker-widget table th.picker-switch{width:145px}.bootstrap-datetimepicker-widget table th.disabled,.bootstrap-datetimepicker-widget table th.disabled:hover{background:none;color:#777;cursor:not-allowed}.bootstrap-datetimepicker-widget table th.prev::after{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0, 0, 0, 0);border:0;content:"Previous Month"}.bootstrap-datetimepicker-widget table th.next::after{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0, 0, 0, 0);border:0;content:"Next Month"}.bootstrap-datetimepicker-widget table thead tr:first-child th{cursor:pointer}.bootstrap-datetimepicker-widget table thead tr:first-child th:hover{background:#eee}.bootstrap-datetimepicker-widget table td{height:54px;line-height:54px;width:54px}.bootstrap-datetimepicker-widget table td.cw{font-size:.8em;height:20px;line-height:20px;color:#777}.bootstrap-datetimepicker-widget table td.day{height:20px;line-height:20px;width:20px}.bootstrap-datetimepicker-widget table td.day:hover,.bootstrap-datetimepicker-widget table td.hour:hover,.bootstrap-datetimepicker-widget table td.minute:hover,.bootstrap-datetimepicker-widget table td.second:hover{background:#eee;cursor:pointer}.bootstrap-datetimepicker-widget table td.old,.bootstrap-datetimepicker-widget table td.new{color:#777}.bootstrap-datetimepicker-widget table td.today{position:relative}.bootstrap-datetimepicker-widget table td.today:before{content:'';display:inline-block;border:solid transparent;border-width:0 0 7px 7px;border-bottom-color:#337ab7;border-top-color:rgba(0,0,0,0.2);position:absolute;bottom:4px;right:4px}.bootstrap-datetimepicker-widget table td.active,.bootstrap-datetimepicker-widget table td.active:hover{background-color:#337ab7;color:#fff;text-shadow:0 -1px 0 rgba(0,0,0,0.25)}.bootstrap-datetimepicker-widget table td.active.today:before{border-bottom-color:#fff}.bootstrap-datetimepicker-widget table td.disabled,.bootstrap-datetimepicker-widget table td.disabled:hover{background:none;color:#777;cursor:not-allowed}.bootstrap-datetimepicker-widget table td span{display:inline-block;width:54px;height:54px;line-height:54px;margin:2px 1.5px;cursor:pointer;border-radius:4px}.bootstrap-datetimepicker-widget table td span:hover{background:#eee}.bootstrap-datetimepicker-widget table td span.active{background-color:#337ab7;color:#fff;text-shadow:0 -1px 0 rgba(0,0,0,0.25)}.bootstrap-datetimepicker-widget table td span.old{color:#777}.bootstrap-datetimepicker-widget table td span.disabled,.bootstrap-datetimepicker-widget table td span.disabled:hover{background:none;color:#777;cursor:not-allowed}.bootstrap-datetimepicker-widget.usetwentyfour td.hour{height:27px;line-height:27px}.bootstrap-datetimepicker-widget.wider{width:21em}.bootstrap-datetimepicker-widget .datepicker-decades .decade{line-height:1.8em !important}.input-group.date .input-group-addon{cursor:pointer}.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0, 0, 0, 0);border:0}
+\ No newline at end of file
+diff --git a/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/js/bootstrap-datetimepicker.min.js b/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/js/bootstrap-datetimepicker.min.js
+new file mode 100644
+index 0000000..db3d085
+--- /dev/null
++++ b/openstack_dashboard/static/dashboard/logmanagement/bootstrap-datetimepicker/js/bootstrap-datetimepicker.min.js
+@@ -0,0 +1,9 @@
++/*! version : 4.17.37
++ =========================================================
++ bootstrap-datetimejs
++ https://github.com/Eonasdan/bootstrap-datetimepicker
++ Copyright (c) 2015 Jonathan Peterson
++ =========================================================
++ */
++!function(a){"use strict";if("function"==typeof define&&define.amd)define(["jquery","moment"],a);else if("object"==typeof exports)a(require("jquery"),require("moment"));else{if("undefined"==typeof jQuery)throw"bootstrap-datetimepicker requires jQuery to be loaded first";if("undefined"==typeof moment)throw"bootstrap-datetimepicker requires Moment.js to be loaded first";a(jQuery,moment)}}(function(a,b){"use strict";if(!b)throw new Error("bootstrap-datetimepicker requires Moment.js to be loaded first");var c=function(c,d){var e,f,g,h,i,j,k,l={},m=!0,n=!1,o=!1,p=0,q=[{clsName:"days",navFnc:"M",navStep:1},{clsName:"months",navFnc:"y",navStep:1},{clsName:"years",navFnc:"y",navStep:10},{clsName:"decades",navFnc:"y",navStep:100}],r=["days","months","years","decades"],s=["top","bottom","auto"],t=["left","right","auto"],u=["default","top","bottom"],v={up:38,38:"up",down:40,40:"down",left:37,37:"left",right:39,39:"right",tab:9,9:"tab",escape:27,27:"escape",enter:13,13:"enter",pageUp:33,33:"pageUp",pageDown:34,34:"pageDown",shift:16,16:"shift",control:17,17:"control",space:32,32:"space",t:84,84:"t","delete":46,46:"delete"},w={},x=function(a){var c,e,f,g,h,i=!1;return void 0!==b.tz&&void 0!==d.timeZone&&null!==d.timeZone&&""!==d.timeZone&&(i=!0),void 0===a||null===a?c=i?b().tz(d.timeZone).startOf("d"):b().startOf("d"):i?(e=b().tz(d.timeZone).utcOffset(),f=b(a,j,d.useStrict).utcOffset(),f!==e?(g=b().tz(d.timeZone).format("Z"),h=b(a,j,d.useStrict).format("YYYY-MM-DD[T]HH:mm:ss")+g,c=b(h,j,d.useStrict).tz(d.timeZone)):c=b(a,j,d.useStrict).tz(d.timeZone)):c=b(a,j,d.useStrict),c},y=function(a){if("string"!=typeof a||a.length>1)throw new TypeError("isEnabled expects a single character string parameter");switch(a){case"y":return-1!==i.indexOf("Y");case"M":return-1!==i.indexOf("M");case"d":return-1!==i.toLowerCase().indexOf("d");case"h":case"H":return-1!==i.toLowerCase().indexOf("h");case"m":return-1!==i.indexOf("m");case"s":return-1!==i.indexOf("s");default:return!1}},z=function(){return y("h")||y("m")||y("s")},A=function(){return y("y")||y("M")||y("d")},B=function(){var b=a("<thead>").append(a("<tr>").append(a("<th>").addClass("prev").attr("data-action","previous").append(a("<span>").addClass(d.icons.previous))).append(a("<th>").addClass("picker-switch").attr("data-action","pickerSwitch").attr("colspan",d.calendarWeeks?"6":"5")).append(a("<th>").addClass("next").attr("data-action","next").append(a("<span>").addClass(d.icons.next)))),c=a("<tbody>").append(a("<tr>").append(a("<td>").attr("colspan",d.calendarWeeks?"8":"7")));return[a("<div>").addClass("datepicker-days").append(a("<table>").addClass("table-condensed").append(b).append(a("<tbody>"))),a("<div>").addClass("datepicker-months").append(a("<table>").addClass("table-condensed").append(b.clone()).append(c.clone())),a("<div>").addClass("datepicker-years").append(a("<table>").addClass("table-condensed").append(b.clone()).append(c.clone())),a("<div>").addClass("datepicker-decades").append(a("<table>").addClass("table-condensed").append(b.clone()).append(c.clone()))]},C=function(){var b=a("<tr>"),c=a("<tr>"),e=a("<tr>");return y("h")&&(b.append(a("<td>").append(a("<a>").attr({href:"#",tabindex:"-1",title:d.tooltips.incrementHour}).addClass("btn").attr("data-action","incrementHours").append(a("<span>").addClass(d.icons.up)))),c.append(a("<td>").append(a("<span>").addClass("timepicker-hour").attr({"data-time-component":"hours",title:d.tooltips.pickHour}).attr("data-action","showHours"))),e.append(a("<td>").append(a("<a>").attr({href:"#",tabindex:"-1",title:d.tooltips.decrementHour}).addClass("btn").attr("data-action","decrementHours").append(a("<span>").addClass(d.icons.down))))),y("m")&&(y("h")&&(b.append(a("<td>").addClass("separator")),c.append(a("<td>").addClass("separator").html(":")),e.append(a("<td>").addClass("separator"))),b.append(a("<td>").append(a("<a>").attr({href:"#",tabindex:"-1",title:d.tooltips.incrementMinute}).addClass("btn").attr("data-action","incrementMinutes").append(a("<span>").addClass(d.icons.up)))),c.append(a("<td>").append(a("<span>").addClass("timepicker-minute").attr({"data-time-component":"minutes",title:d.tooltips.pickMinute}).attr("data-action","showMinutes"))),e.append(a("<td>").append(a("<a>").attr({href:"#",tabindex:"-1",title:d.tooltips.decrementMinute}).addClass("btn").attr("data-action","decrementMinutes").append(a("<span>").addClass(d.icons.down))))),y("s")&&(y("m")&&(b.append(a("<td>").addClass("separator")),c.append(a("<td>").addClass("separator").html(":")),e.append(a("<td>").addClass("separator"))),b.append(a("<td>").append(a("<a>").attr({href:"#",tabindex:"-1",title:d.tooltips.incrementSecond}).addClass("btn").attr("data-action","incrementSeconds").append(a("<span>").addClass(d.icons.up)))),c.append(a("<td>").append(a("<span>").addClass("timepicker-second").attr({"data-time-component":"seconds",title:d.tooltips.pickSecond}).attr("data-action","showSeconds"))),e.append(a("<td>").append(a("<a>").attr({href:"#",tabindex:"-1",title:d.tooltips.decrementSecond}).addClass("btn").attr("data-action","decrementSeconds").append(a("<span>").addClass(d.icons.down))))),h||(b.append(a("<td>").addClass("separator")),c.append(a("<td>").append(a("<button>").addClass("btn btn-primary").attr({"data-action":"togglePeriod",tabindex:"-1",title:d.tooltips.togglePeriod}))),e.append(a("<td>").addClass("separator"))),a("<div>").addClass("timepicker-picker").append(a("<table>").addClass("table-condensed").append([b,c,e]))},D=function(){var b=a("<div>").addClass("timepicker-hours").append(a("<table>").addClass("table-condensed")),c=a("<div>").addClass("timepicker-minutes").append(a("<table>").addClass("table-condensed")),d=a("<div>").addClass("timepicker-seconds").append(a("<table>").addClass("table-condensed")),e=[C()];return y("h")&&e.push(b),y("m")&&e.push(c),y("s")&&e.push(d),e},E=function(){var b=[];return d.showTodayButton&&b.push(a("<td>").append(a("<a>").attr({"data-action":"today",title:d.tooltips.today}).append(a("<span>").addClass(d.icons.today)))),!d.sideBySide&&A()&&z()&&b.push(a("<td>").append(a("<a>").attr({"data-action":"togglePicker",title:d.tooltips.selectTime}).append(a("<span>").addClass(d.icons.time)))),d.showClear&&b.push(a("<td>").append(a("<a>").attr({"data-action":"clear",title:d.tooltips.clear}).append(a("<span>").addClass(d.icons.clear)))),d.showClose&&b.push(a("<td>").append(a("<a>").attr({"data-action":"close",title:d.tooltips.close}).append(a("<span>").addClass(d.icons.close)))),a("<table>").addClass("table-condensed").append(a("<tbody>").append(a("<tr>").append(b)))},F=function(){var b=a("<div>").addClass("bootstrap-datetimepicker-widget dropdown-menu"),c=a("<div>").addClass("datepicker").append(B()),e=a("<div>").addClass("timepicker").append(D()),f=a("<ul>").addClass("list-unstyled"),g=a("<li>").addClass("picker-switch"+(d.collapse?" accordion-toggle":"")).append(E());return d.inline&&b.removeClass("dropdown-menu"),h&&b.addClass("usetwentyfour"),y("s")&&!h&&b.addClass("wider"),d.sideBySide&&A()&&z()?(b.addClass("timepicker-sbs"),"top"===d.toolbarPlacement&&b.append(g),b.append(a("<div>").addClass("row").append(c.addClass("col-md-6")).append(e.addClass("col-md-6"))),"bottom"===d.toolbarPlacement&&b.append(g),b):("top"===d.toolbarPlacement&&f.append(g),A()&&f.append(a("<li>").addClass(d.collapse&&z()?"collapse in":"").append(c)),"default"===d.toolbarPlacement&&f.append(g),z()&&f.append(a("<li>").addClass(d.collapse&&A()?"collapse":"").append(e)),"bottom"===d.toolbarPlacement&&f.append(g),b.append(f))},G=function(){var b,e={};return b=c.is("input")||d.inline?c.data():c.find("input").data(),b.dateOptions&&b.dateOptions instanceof Object&&(e=a.extend(!0,e,b.dateOptions)),a.each(d,function(a){var c="date"+a.charAt(0).toUpperCase()+a.slice(1);void 0!==b[c]&&(e[a]=b[c])}),e},H=function(){var b,e=(n||c).position(),f=(n||c).offset(),g=d.widgetPositioning.vertical,h=d.widgetPositioning.horizontal;if(d.widgetParent)b=d.widgetParent.append(o);else if(c.is("input"))b=c.after(o).parent();else{if(d.inline)return void(b=c.append(o));b=c,c.children().first().after(o)}if("auto"===g&&(g=f.top+1.5*o.height()>=a(window).height()+a(window).scrollTop()&&o.height()+c.outerHeight()<f.top?"top":"bottom"),"auto"===h&&(h=b.width()<f.left+o.outerWidth()/2&&f.left+o.outerWidth()>a(window).width()?"right":"left"),"top"===g?o.addClass("top").removeClass("bottom"):o.addClass("bottom").removeClass("top"),"right"===h?o.addClass("pull-right"):o.removeClass("pull-right"),"relative"!==b.css("position")&&(b=b.parents().filter(function(){return"relative"===a(this).css("position")}).first()),0===b.length)throw new Error("datetimepicker component should be placed within a relative positioned container");o.css({top:"top"===g?"auto":e.top+c.outerHeight(),bottom:"top"===g?e.top+c.outerHeight():"auto",left:"left"===h?b===c?0:e.left:"auto",right:"left"===h?"auto":b.outerWidth()-c.outerWidth()-(b===c?0:e.left)})},I=function(a){"dp.change"===a.type&&(a.date&&a.date.isSame(a.oldDate)||!a.date&&!a.oldDate)||c.trigger(a)},J=function(a){"y"===a&&(a="YYYY"),I({type:"dp.update",change:a,viewDate:f.clone()})},K=function(a){o&&(a&&(k=Math.max(p,Math.min(3,k+a))),o.find(".datepicker > div").hide().filter(".datepicker-"+q[k].clsName).show())},L=function(){var b=a("<tr>"),c=f.clone().startOf("w").startOf("d");for(d.calendarWeeks===!0&&b.append(a("<th>").addClass("cw").text("#"));c.isBefore(f.clone().endOf("w"));)b.append(a("<th>").addClass("dow").text(c.format("dd"))),c.add(1,"d");o.find(".datepicker-days thead").append(b)},M=function(a){return d.disabledDates[a.format("YYYY-MM-DD")]===!0},N=function(a){return d.enabledDates[a.format("YYYY-MM-DD")]===!0},O=function(a){return d.disabledHours[a.format("H")]===!0},P=function(a){return d.enabledHours[a.format("H")]===!0},Q=function(b,c){if(!b.isValid())return!1;if(d.disabledDates&&"d"===c&&M(b))return!1;if(d.enabledDates&&"d"===c&&!N(b))return!1;if(d.minDate&&b.isBefore(d.minDate,c))return!1;if(d.maxDate&&b.isAfter(d.maxDate,c))return!1;if(d.daysOfWeekDisabled&&"d"===c&&-1!==d.daysOfWeekDisabled.indexOf(b.day()))return!1;if(d.disabledHours&&("h"===c||"m"===c||"s"===c)&&O(b))return!1;if(d.enabledHours&&("h"===c||"m"===c||"s"===c)&&!P(b))return!1;if(d.disabledTimeIntervals&&("h"===c||"m"===c||"s"===c)){var e=!1;if(a.each(d.disabledTimeIntervals,function(){return b.isBetween(this[0],this[1])?(e=!0,!1):void 0}),e)return!1}return!0},R=function(){for(var b=[],c=f.clone().startOf("y").startOf("d");c.isSame(f,"y");)b.push(a("<span>").attr("data-action","selectMonth").addClass("month").text(c.format("MMM"))),c.add(1,"M");o.find(".datepicker-months td").empty().append(b)},S=function(){var b=o.find(".datepicker-months"),c=b.find("th"),g=b.find("tbody").find("span");c.eq(0).find("span").attr("title",d.tooltips.prevYear),c.eq(1).attr("title",d.tooltips.selectYear),c.eq(2).find("span").attr("title",d.tooltips.nextYear),b.find(".disabled").removeClass("disabled"),Q(f.clone().subtract(1,"y"),"y")||c.eq(0).addClass("disabled"),c.eq(1).text(f.year()),Q(f.clone().add(1,"y"),"y")||c.eq(2).addClass("disabled"),g.removeClass("active"),e.isSame(f,"y")&&!m&&g.eq(e.month()).addClass("active"),g.each(function(b){Q(f.clone().month(b),"M")||a(this).addClass("disabled")})},T=function(){var a=o.find(".datepicker-years"),b=a.find("th"),c=f.clone().subtract(5,"y"),g=f.clone().add(6,"y"),h="";for(b.eq(0).find("span").attr("title",d.tooltips.prevDecade),b.eq(1).attr("title",d.tooltips.selectDecade),b.eq(2).find("span").attr("title",d.tooltips.nextDecade),a.find(".disabled").removeClass("disabled"),d.minDate&&d.minDate.isAfter(c,"y")&&b.eq(0).addClass("disabled"),b.eq(1).text(c.year()+"-"+g.year()),d.maxDate&&d.maxDate.isBefore(g,"y")&&b.eq(2).addClass("disabled");!c.isAfter(g,"y");)h+='<span data-action="selectYear" class="year'+(c.isSame(e,"y")&&!m?" active":"")+(Q(c,"y")?"":" disabled")+'">'+c.year()+"</span>",c.add(1,"y");a.find("td").html(h)},U=function(){var a=o.find(".datepicker-decades"),c=a.find("th"),g=b({y:f.year()-f.year()%100-1}),h=g.clone().add(100,"y"),i=g.clone(),j="";for(c.eq(0).find("span").attr("title",d.tooltips.prevCentury),c.eq(2).find("span").attr("title",d.tooltips.nextCentury),a.find(".disabled").removeClass("disabled"),(g.isSame(b({y:1900}))||d.minDate&&d.minDate.isAfter(g,"y"))&&c.eq(0).addClass("disabled"),c.eq(1).text(g.year()+"-"+h.year()),(g.isSame(b({y:2e3}))||d.maxDate&&d.maxDate.isBefore(h,"y"))&&c.eq(2).addClass("disabled");!g.isAfter(h,"y");)j+='<span data-action="selectDecade" class="decade'+(g.isSame(e,"y")?" active":"")+(Q(g,"y")?"":" disabled")+'" data-selection="'+(g.year()+6)+'">'+(g.year()+1)+" - "+(g.year()+12)+"</span>",g.add(12,"y");j+="<span></span><span></span><span></span>",a.find("td").html(j),c.eq(1).text(i.year()+1+"-"+g.year())},V=function(){var b,c,g,h,i=o.find(".datepicker-days"),j=i.find("th"),k=[];if(A()){for(j.eq(0).find("span").attr("title",d.tooltips.prevMonth),j.eq(1).attr("title",d.tooltips.selectMonth),j.eq(2).find("span").attr("title",d.tooltips.nextMonth),i.find(".disabled").removeClass("disabled"),j.eq(1).text(f.format(d.dayViewHeaderFormat)),Q(f.clone().subtract(1,"M"),"M")||j.eq(0).addClass("disabled"),Q(f.clone().add(1,"M"),"M")||j.eq(2).addClass("disabled"),b=f.clone().startOf("M").startOf("w").startOf("d"),h=0;42>h;h++)0===b.weekday()&&(c=a("<tr>"),d.calendarWeeks&&c.append('<td class="cw">'+b.week()+"</td>"),k.push(c)),g="",b.isBefore(f,"M")&&(g+=" old"),b.isAfter(f,"M")&&(g+=" new"),b.isSame(e,"d")&&!m&&(g+=" active"),Q(b,"d")||(g+=" disabled"),b.isSame(x(),"d")&&(g+=" today"),(0===b.day()||6===b.day())&&(g+=" weekend"),c.append('<td data-action="selectDay" data-day="'+b.format("L")+'" class="day'+g+'">'+b.date()+"</td>"),b.add(1,"d");i.find("tbody").empty().append(k),S(),T(),U()}},W=function(){var b=o.find(".timepicker-hours table"),c=f.clone().startOf("d"),d=[],e=a("<tr>");for(f.hour()>11&&!h&&c.hour(12);c.isSame(f,"d")&&(h||f.hour()<12&&c.hour()<12||f.hour()>11);)c.hour()%4===0&&(e=a("<tr>"),d.push(e)),e.append('<td data-action="selectHour" class="hour'+(Q(c,"h")?"":" disabled")+'">'+c.format(h?"HH":"hh")+"</td>"),c.add(1,"h");b.empty().append(d)},X=function(){for(var b=o.find(".timepicker-minutes table"),c=f.clone().startOf("h"),e=[],g=a("<tr>"),h=1===d.stepping?5:d.stepping;f.isSame(c,"h");)c.minute()%(4*h)===0&&(g=a("<tr>"),e.push(g)),g.append('<td data-action="selectMinute" class="minute'+(Q(c,"m")?"":" disabled")+'">'+c.format("mm")+"</td>"),c.add(h,"m");b.empty().append(e)},Y=function(){for(var b=o.find(".timepicker-seconds table"),c=f.clone().startOf("m"),d=[],e=a("<tr>");f.isSame(c,"m");)c.second()%20===0&&(e=a("<tr>"),d.push(e)),e.append('<td data-action="selectSecond" class="second'+(Q(c,"s")?"":" disabled")+'">'+c.format("ss")+"</td>"),c.add(5,"s");b.empty().append(d)},Z=function(){var a,b,c=o.find(".timepicker span[data-time-component]");h||(a=o.find(".timepicker [data-action=togglePeriod]"),b=e.clone().add(e.hours()>=12?-12:12,"h"),a.text(e.format("A")),Q(b,"h")?a.removeClass("disabled"):a.addClass("disabled")),c.filter("[data-time-component=hours]").text(e.format(h?"HH":"hh")),c.filter("[data-time-component=minutes]").text(e.format("mm")),c.filter("[data-time-component=seconds]").text(e.format("ss")),W(),X(),Y()},$=function(){o&&(V(),Z())},_=function(a){var b=m?null:e;return a?(a=a.clone().locale(d.locale),1!==d.stepping&&a.minutes(Math.round(a.minutes()/d.stepping)*d.stepping%60).seconds(0),void(Q(a)?(e=a,f=e.clone(),g.val(e.format(i)),c.data("date",e.format(i)),m=!1,$(),I({type:"dp.change",date:e.clone(),oldDate:b})):(d.keepInvalid||g.val(m?"":e.format(i)),I({type:"dp.error",date:a})))):(m=!0,g.val(""),c.data("date",""),I({type:"dp.change",date:!1,oldDate:b}),void $())},aa=function(){var b=!1;return o?(o.find(".collapse").each(function(){var c=a(this).data("collapse");return c&&c.transitioning?(b=!0,!1):!0}),b?l:(n&&n.hasClass("btn")&&n.toggleClass("active"),o.hide(),a(window).off("resize",H),o.off("click","[data-action]"),o.off("mousedown",!1),o.remove(),o=!1,I({type:"dp.hide",date:e.clone()}),g.blur(),l)):l},ba=function(){_(null)},ca={next:function(){var a=q[k].navFnc;f.add(q[k].navStep,a),V(),J(a)},previous:function(){var a=q[k].navFnc;f.subtract(q[k].navStep,a),V(),J(a)},pickerSwitch:function(){K(1)},selectMonth:function(b){var c=a(b.target).closest("tbody").find("span").index(a(b.target));f.month(c),k===p?(_(e.clone().year(f.year()).month(f.month())),d.inline||aa()):(K(-1),V()),J("M")},selectYear:function(b){var c=parseInt(a(b.target).text(),10)||0;f.year(c),k===p?(_(e.clone().year(f.year())),d.inline||aa()):(K(-1),V()),J("YYYY")},selectDecade:function(b){var c=parseInt(a(b.target).data("selection"),10)||0;f.year(c),k===p?(_(e.clone().year(f.year())),d.inline||aa()):(K(-1),V()),J("YYYY")},selectDay:function(b){var c=f.clone();a(b.target).is(".old")&&c.subtract(1,"M"),a(b.target).is(".new")&&c.add(1,"M"),_(c.date(parseInt(a(b.target).text(),10))),z()||d.keepOpen||d.inline||aa()},incrementHours:function(){var a=e.clone().add(1,"h");Q(a,"h")&&_(a)},incrementMinutes:function(){var a=e.clone().add(d.stepping,"m");Q(a,"m")&&_(a)},incrementSeconds:function(){var a=e.clone().add(1,"s");Q(a,"s")&&_(a)},decrementHours:function(){var a=e.clone().subtract(1,"h");Q(a,"h")&&_(a)},decrementMinutes:function(){var a=e.clone().subtract(d.stepping,"m");Q(a,"m")&&_(a)},decrementSeconds:function(){var a=e.clone().subtract(1,"s");Q(a,"s")&&_(a)},togglePeriod:function(){_(e.clone().add(e.hours()>=12?-12:12,"h"))},togglePicker:function(b){var c,e=a(b.target),f=e.closest("ul"),g=f.find(".in"),h=f.find(".collapse:not(.in)");if(g&&g.length){if(c=g.data("collapse"),c&&c.transitioning)return;g.collapse?(g.collapse("hide"),h.collapse("show")):(g.removeClass("in"),h.addClass("in")),e.is("span")?e.toggleClass(d.icons.time+" "+d.icons.date):e.find("span").toggleClass(d.icons.time+" "+d.icons.date)}},showPicker:function(){o.find(".timepicker > div:not(.timepicker-picker)").hide(),o.find(".timepicker .timepicker-picker").show()},showHours:function(){o.find(".timepicker .timepicker-picker").hide(),o.find(".timepicker .timepicker-hours").show()},showMinutes:function(){o.find(".timepicker .timepicker-picker").hide(),o.find(".timepicker .timepicker-minutes").show()},showSeconds:function(){o.find(".timepicker .timepicker-picker").hide(),o.find(".timepicker .timepicker-seconds").show()},selectHour:function(b){var c=parseInt(a(b.target).text(),10);h||(e.hours()>=12?12!==c&&(c+=12):12===c&&(c=0)),_(e.clone().hours(c)),ca.showPicker.call(l)},selectMinute:function(b){_(e.clone().minutes(parseInt(a(b.target).text(),10))),ca.showPicker.call(l)},selectSecond:function(b){_(e.clone().seconds(parseInt(a(b.target).text(),10))),ca.showPicker.call(l)},clear:ba,today:function(){var a=x();Q(a,"d")&&_(a)},close:aa},da=function(b){return a(b.currentTarget).is(".disabled")?!1:(ca[a(b.currentTarget).data("action")].apply(l,arguments),!1)},ea=function(){var b,c={year:function(a){return a.month(0).date(1).hours(0).seconds(0).minutes(0)},month:function(a){return a.date(1).hours(0).seconds(0).minutes(0)},day:function(a){return a.hours(0).seconds(0).minutes(0)},hour:function(a){return a.seconds(0).minutes(0)},minute:function(a){return a.seconds(0)}};return g.prop("disabled")||!d.ignoreReadonly&&g.prop("readonly")||o?l:(void 0!==g.val()&&0!==g.val().trim().length?_(ga(g.val().trim())):d.useCurrent&&m&&(g.is("input")&&0===g.val().trim().length||d.inline)&&(b=x(),"string"==typeof d.useCurrent&&(b=c[d.useCurrent](b)),_(b)),o=F(),L(),R(),o.find(".timepicker-hours").hide(),o.find(".timepicker-minutes").hide(),o.find(".timepicker-seconds").hide(),$(),K(),a(window).on("resize",H),o.on("click","[data-action]",da),o.on("mousedown",!1),n&&n.hasClass("btn")&&n.toggleClass("active"),o.show(),H(),d.focusOnShow&&!g.is(":focus")&&g.focus(),I({type:"dp.show"}),l)},fa=function(){return o?aa():ea()},ga=function(a){return a=void 0===d.parseInputDate?b.isMoment(a)||a instanceof Date?b(a):x(a):d.parseInputDate(a),a.locale(d.locale),a},ha=function(a){var b,c,e,f,g=null,h=[],i={},j=a.which,k="p";w[j]=k;for(b in w)w.hasOwnProperty(b)&&w[b]===k&&(h.push(b),parseInt(b,10)!==j&&(i[b]=!0));for(b in d.keyBinds)if(d.keyBinds.hasOwnProperty(b)&&"function"==typeof d.keyBinds[b]&&(e=b.split(" "),e.length===h.length&&v[j]===e[e.length-1])){for(f=!0,c=e.length-2;c>=0;c--)if(!(v[e[c]]in i)){f=!1;break}if(f){g=d.keyBinds[b];break}}g&&(g.call(l,o),a.stopPropagation(),a.preventDefault())},ia=function(a){w[a.which]="r",a.stopPropagation(),a.preventDefault()},ja=function(b){var c=a(b.target).val().trim(),d=c?ga(c):null;return _(d),b.stopImmediatePropagation(),!1},ka=function(){g.on({change:ja,blur:d.debug?"":aa,keydown:ha,keyup:ia,focus:d.allowInputToggle?ea:""}),c.is("input")?g.on({focus:ea}):n&&(n.on("click",fa),n.on("mousedown",!1))},la=function(){g.off({change:ja,blur:blur,keydown:ha,keyup:ia,focus:d.allowInputToggle?aa:""}),c.is("input")?g.off({focus:ea}):n&&(n.off("click",fa),n.off("mousedown",!1))},ma=function(b){var c={};return a.each(b,function(){var a=ga(this);a.isValid()&&(c[a.format("YYYY-MM-DD")]=!0)}),Object.keys(c).length?c:!1},na=function(b){var c={};return a.each(b,function(){c[this]=!0}),Object.keys(c).length?c:!1},oa=function(){var a=d.format||"L LT";i=a.replace(/(\[[^\[]*\])|(\\)?(LTS|LT|LL?L?L?|l{1,4})/g,function(a){var b=e.localeData().longDateFormat(a)||a;return b.replace(/(\[[^\[]*\])|(\\)?(LTS|LT|LL?L?L?|l{1,4})/g,function(a){return e.localeData().longDateFormat(a)||a})}),j=d.extraFormats?d.extraFormats.slice():[],j.indexOf(a)<0&&j.indexOf(i)<0&&j.push(i),h=i.toLowerCase().indexOf("a")<1&&i.replace(/\[.*?\]/g,"").indexOf("h")<1,y("y")&&(p=2),y("M")&&(p=1),y("d")&&(p=0),k=Math.max(p,k),m||_(e)};if(l.destroy=function(){aa(),la(),c.removeData("DateTimePicker"),c.removeData("date")},l.toggle=fa,l.show=ea,l.hide=aa,l.disable=function(){return aa(),n&&n.hasClass("btn")&&n.addClass("disabled"),g.prop("disabled",!0),l},l.enable=function(){return n&&n.hasClass("btn")&&n.removeClass("disabled"),g.prop("disabled",!1),l},l.ignoreReadonly=function(a){if(0===arguments.length)return d.ignoreReadonly;if("boolean"!=typeof a)throw new TypeError("ignoreReadonly () expects a boolean parameter");return d.ignoreReadonly=a,l},l.options=function(b){if(0===arguments.length)return a.extend(!0,{},d);if(!(b instanceof Object))throw new TypeError("options() options parameter should be an object");return a.extend(!0,d,b),a.each(d,function(a,b){if(void 0===l[a])throw new TypeError("option "+a+" is not recognized!");l[a](b)}),l},l.date=function(a){if(0===arguments.length)return m?null:e.clone();if(!(null===a||"string"==typeof a||b.isMoment(a)||a instanceof Date))throw new TypeError("date() parameter must be one of [null, string, moment or Date]");return _(null===a?null:ga(a)),l},l.format=function(a){if(0===arguments.length)return d.format;if("string"!=typeof a&&("boolean"!=typeof a||a!==!1))throw new TypeError("format() expects a sting or boolean:false parameter "+a);return d.format=a,i&&oa(),l},l.timeZone=function(a){return 0===arguments.length?d.timeZone:(d.timeZone=a,l)},l.dayViewHeaderFormat=function(a){if(0===arguments.length)return d.dayViewHeaderFormat;if("string"!=typeof a)throw new TypeError("dayViewHeaderFormat() expects a string parameter");return d.dayViewHeaderFormat=a,l},l.extraFormats=function(a){if(0===arguments.length)return d.extraFormats;if(a!==!1&&!(a instanceof Array))throw new TypeError("extraFormats() expects an array or false parameter");return d.extraFormats=a,j&&oa(),l},l.disabledDates=function(b){if(0===arguments.length)return d.disabledDates?a.extend({},d.disabledDates):d.disabledDates;if(!b)return d.disabledDates=!1,$(),l;if(!(b instanceof Array))throw new TypeError("disabledDates() expects an array parameter");return d.disabledDates=ma(b),d.enabledDates=!1,$(),l},l.enabledDates=function(b){if(0===arguments.length)return d.enabledDates?a.extend({},d.enabledDates):d.enabledDates;if(!b)return d.enabledDates=!1,$(),l;if(!(b instanceof Array))throw new TypeError("enabledDates() expects an array parameter");return d.enabledDates=ma(b),d.disabledDates=!1,$(),l},l.daysOfWeekDisabled=function(a){if(0===arguments.length)return d.daysOfWeekDisabled.splice(0);if("boolean"==typeof a&&!a)return d.daysOfWeekDisabled=!1,$(),l;if(!(a instanceof Array))throw new TypeError("daysOfWeekDisabled() expects an array parameter");if(d.daysOfWeekDisabled=a.reduce(function(a,b){return b=parseInt(b,10),b>6||0>b||isNaN(b)?a:(-1===a.indexOf(b)&&a.push(b),a)},[]).sort(),d.useCurrent&&!d.keepInvalid){for(var b=0;!Q(e,"d");){if(e.add(1,"d"),7===b)throw"Tried 7 times to find a valid date";b++}_(e)}return $(),l},l.maxDate=function(a){if(0===arguments.length)return d.maxDate?d.maxDate.clone():d.maxDate;if("boolean"==typeof a&&a===!1)return d.maxDate=!1,$(),l;"string"==typeof a&&("now"===a||"moment"===a)&&(a=x());var b=ga(a);if(!b.isValid())throw new TypeError("maxDate() Could not parse date parameter: "+a);if(d.minDate&&b.isBefore(d.minDate))throw new TypeError("maxDate() date parameter is before options.minDate: "+b.format(i));return d.maxDate=b,d.useCurrent&&!d.keepInvalid&&e.isAfter(a)&&_(d.maxDate),f.isAfter(b)&&(f=b.clone().subtract(d.stepping,"m")),$(),l},l.minDate=function(a){if(0===arguments.length)return d.minDate?d.minDate.clone():d.minDate;if("boolean"==typeof a&&a===!1)return d.minDate=!1,$(),l;"string"==typeof a&&("now"===a||"moment"===a)&&(a=x());var b=ga(a);if(!b.isValid())throw new TypeError("minDate() Could not parse date parameter: "+a);if(d.maxDate&&b.isAfter(d.maxDate))throw new TypeError("minDate() date parameter is after options.maxDate: "+b.format(i));return d.minDate=b,d.useCurrent&&!d.keepInvalid&&e.isBefore(a)&&_(d.minDate),f.isBefore(b)&&(f=b.clone().add(d.stepping,"m")),$(),l},l.defaultDate=function(a){if(0===arguments.length)return d.defaultDate?d.defaultDate.clone():d.defaultDate;if(!a)return d.defaultDate=!1,l;"string"==typeof a&&("now"===a||"moment"===a)&&(a=x());var b=ga(a);if(!b.isValid())throw new TypeError("defaultDate() Could not parse date parameter: "+a);if(!Q(b))throw new TypeError("defaultDate() date passed is invalid according to component setup validations");return d.defaultDate=b,(d.defaultDate&&d.inline||""===g.val().trim())&&_(d.defaultDate),l},l.locale=function(a){if(0===arguments.length)return d.locale;if(!b.localeData(a))throw new TypeError("locale() locale "+a+" is not loaded from moment locales!");return d.locale=a,e.locale(d.locale),f.locale(d.locale),i&&oa(),o&&(aa(),ea()),l},l.stepping=function(a){return 0===arguments.length?d.stepping:(a=parseInt(a,10),(isNaN(a)||1>a)&&(a=1),d.stepping=a,l)},l.useCurrent=function(a){var b=["year","month","day","hour","minute"];if(0===arguments.length)return d.useCurrent;if("boolean"!=typeof a&&"string"!=typeof a)throw new TypeError("useCurrent() expects a boolean or string parameter");if("string"==typeof a&&-1===b.indexOf(a.toLowerCase()))throw new TypeError("useCurrent() expects a string parameter of "+b.join(", "));return d.useCurrent=a,l},l.collapse=function(a){if(0===arguments.length)return d.collapse;if("boolean"!=typeof a)throw new TypeError("collapse() expects a boolean parameter");return d.collapse===a?l:(d.collapse=a,o&&(aa(),ea()),l)},l.icons=function(b){if(0===arguments.length)return a.extend({},d.icons);if(!(b instanceof Object))throw new TypeError("icons() expects parameter to be an Object");return a.extend(d.icons,b),o&&(aa(),ea()),l},l.tooltips=function(b){if(0===arguments.length)return a.extend({},d.tooltips);if(!(b instanceof Object))throw new TypeError("tooltips() expects parameter to be an Object");return a.extend(d.tooltips,b),o&&(aa(),ea()),l},l.useStrict=function(a){if(0===arguments.length)return d.useStrict;if("boolean"!=typeof a)throw new TypeError("useStrict() expects a boolean parameter");return d.useStrict=a,l},l.sideBySide=function(a){if(0===arguments.length)return d.sideBySide;if("boolean"!=typeof a)throw new TypeError("sideBySide() expects a boolean parameter");return d.sideBySide=a,o&&(aa(),ea()),l},l.viewMode=function(a){if(0===arguments.length)return d.viewMode;if("string"!=typeof a)throw new TypeError("viewMode() expects a string parameter");if(-1===r.indexOf(a))throw new TypeError("viewMode() parameter must be one of ("+r.join(", ")+") value");return d.viewMode=a,k=Math.max(r.indexOf(a),p),K(),l},l.toolbarPlacement=function(a){if(0===arguments.length)return d.toolbarPlacement;if("string"!=typeof a)throw new TypeError("toolbarPlacement() expects a string parameter");if(-1===u.indexOf(a))throw new TypeError("toolbarPlacement() parameter must be one of ("+u.join(", ")+") value");return d.toolbarPlacement=a,o&&(aa(),ea()),l},l.widgetPositioning=function(b){if(0===arguments.length)return a.extend({},d.widgetPositioning);if("[object Object]"!=={}.toString.call(b))throw new TypeError("widgetPositioning() expects an object variable");if(b.horizontal){if("string"!=typeof b.horizontal)throw new TypeError("widgetPositioning() horizontal variable must be a string");if(b.horizontal=b.horizontal.toLowerCase(),-1===t.indexOf(b.horizontal))throw new TypeError("widgetPositioning() expects horizontal parameter to be one of ("+t.join(", ")+")");d.widgetPositioning.horizontal=b.horizontal}if(b.vertical){if("string"!=typeof b.vertical)throw new TypeError("widgetPositioning() vertical variable must be a string");if(b.vertical=b.vertical.toLowerCase(),-1===s.indexOf(b.vertical))throw new TypeError("widgetPositioning() expects vertical parameter to be one of ("+s.join(", ")+")");d.widgetPositioning.vertical=b.vertical}return $(),l},l.calendarWeeks=function(a){if(0===arguments.length)return d.calendarWeeks;if("boolean"!=typeof a)throw new TypeError("calendarWeeks() expects parameter to be a boolean value");return d.calendarWeeks=a,$(),l},l.showTodayButton=function(a){if(0===arguments.length)return d.showTodayButton;if("boolean"!=typeof a)throw new TypeError("showTodayButton() expects a boolean parameter");return d.showTodayButton=a,o&&(aa(),ea()),l},l.showClear=function(a){if(0===arguments.length)return d.showClear;if("boolean"!=typeof a)throw new TypeError("showClear() expects a boolean parameter");return d.showClear=a,o&&(aa(),ea()),l},l.widgetParent=function(b){if(0===arguments.length)return d.widgetParent;if("string"==typeof b&&(b=a(b)),null!==b&&"string"!=typeof b&&!(b instanceof a))throw new TypeError("widgetParent() expects a string or a jQuery object parameter");return d.widgetParent=b,o&&(aa(),ea()),l},l.keepOpen=function(a){if(0===arguments.length)return d.keepOpen;if("boolean"!=typeof a)throw new TypeError("keepOpen() expects a boolean parameter");return d.keepOpen=a,l},l.focusOnShow=function(a){if(0===arguments.length)return d.focusOnShow;if("boolean"!=typeof a)throw new TypeError("focusOnShow() expects a boolean parameter");return d.focusOnShow=a,l},l.inline=function(a){if(0===arguments.length)return d.inline;if("boolean"!=typeof a)throw new TypeError("inline() expects a boolean parameter");return d.inline=a,l},l.clear=function(){return ba(),l},l.keyBinds=function(a){return d.keyBinds=a,l},l.getMoment=function(a){return x(a)},l.debug=function(a){if("boolean"!=typeof a)throw new TypeError("debug() expects a boolean parameter");return d.debug=a,l},l.allowInputToggle=function(a){if(0===arguments.length)return d.allowInputToggle;if("boolean"!=typeof a)throw new TypeError("allowInputToggle() expects a boolean parameter");return d.allowInputToggle=a,l},l.showClose=function(a){if(0===arguments.length)return d.showClose;if("boolean"!=typeof a)throw new TypeError("showClose() expects a boolean parameter");return d.showClose=a,l},l.keepInvalid=function(a){if(0===arguments.length)return d.keepInvalid;if("boolean"!=typeof a)throw new TypeError("keepInvalid() expects a boolean parameter");return d.keepInvalid=a,l},l.datepickerInput=function(a){if(0===arguments.length)return d.datepickerInput;if("string"!=typeof a)throw new TypeError("datepickerInput() expects a string parameter");return d.datepickerInput=a,l},l.parseInputDate=function(a){if(0===arguments.length)return d.parseInputDate;
++if("function"!=typeof a)throw new TypeError("parseInputDate() sholud be as function");return d.parseInputDate=a,l},l.disabledTimeIntervals=function(b){if(0===arguments.length)return d.disabledTimeIntervals?a.extend({},d.disabledTimeIntervals):d.disabledTimeIntervals;if(!b)return d.disabledTimeIntervals=!1,$(),l;if(!(b instanceof Array))throw new TypeError("disabledTimeIntervals() expects an array parameter");return d.disabledTimeIntervals=b,$(),l},l.disabledHours=function(b){if(0===arguments.length)return d.disabledHours?a.extend({},d.disabledHours):d.disabledHours;if(!b)return d.disabledHours=!1,$(),l;if(!(b instanceof Array))throw new TypeError("disabledHours() expects an array parameter");if(d.disabledHours=na(b),d.enabledHours=!1,d.useCurrent&&!d.keepInvalid){for(var c=0;!Q(e,"h");){if(e.add(1,"h"),24===c)throw"Tried 24 times to find a valid date";c++}_(e)}return $(),l},l.enabledHours=function(b){if(0===arguments.length)return d.enabledHours?a.extend({},d.enabledHours):d.enabledHours;if(!b)return d.enabledHours=!1,$(),l;if(!(b instanceof Array))throw new TypeError("enabledHours() expects an array parameter");if(d.enabledHours=na(b),d.disabledHours=!1,d.useCurrent&&!d.keepInvalid){for(var c=0;!Q(e,"h");){if(e.add(1,"h"),24===c)throw"Tried 24 times to find a valid date";c++}_(e)}return $(),l},l.viewDate=function(a){if(0===arguments.length)return f.clone();if(!a)return f=e.clone(),l;if(!("string"==typeof a||b.isMoment(a)||a instanceof Date))throw new TypeError("viewDate() parameter must be one of [string, moment or Date]");return f=ga(a),J(),l},c.is("input"))g=c;else if(g=c.find(d.datepickerInput),0===g.size())g=c.find("input");else if(!g.is("input"))throw new Error('CSS class "'+d.datepickerInput+'" cannot be applied to non input element');if(c.hasClass("input-group")&&(n=0===c.find(".datepickerbutton").size()?c.find(".input-group-addon"):c.find(".datepickerbutton")),!d.inline&&!g.is("input"))throw new Error("Could not initialize DateTimePicker without an input element");return e=x(),f=e.clone(),a.extend(!0,d,G()),l.options(d),oa(),ka(),g.prop("disabled")&&l.disable(),g.is("input")&&0!==g.val().trim().length?_(ga(g.val().trim())):d.defaultDate&&void 0===g.attr("placeholder")&&_(d.defaultDate),d.inline&&ea(),l};a.fn.datetimepicker=function(b){return this.each(function(){var d=a(this);d.data("DateTimePicker")||(b=a.extend(!0,{},a.fn.datetimepicker.defaults,b),d.data("DateTimePicker",c(d,b)))})},a.fn.datetimepicker.defaults={timeZone:"Etc/UTC",format:!1,dayViewHeaderFormat:"MMMM YYYY",extraFormats:!1,stepping:1,minDate:!1,maxDate:!1,useCurrent:!0,collapse:!0,locale:b.locale(),defaultDate:!1,disabledDates:!1,enabledDates:!1,icons:{time:"glyphicon glyphicon-time",date:"glyphicon glyphicon-calendar",up:"glyphicon glyphicon-chevron-up",down:"glyphicon glyphicon-chevron-down",previous:"glyphicon glyphicon-chevron-left",next:"glyphicon glyphicon-chevron-right",today:"glyphicon glyphicon-screenshot",clear:"glyphicon glyphicon-trash",close:"glyphicon glyphicon-remove"},tooltips:{today:"Go to today",clear:"Clear selection",close:"Close the picker",selectMonth:"Select Month",prevMonth:"Previous Month",nextMonth:"Next Month",selectYear:"Select Year",prevYear:"Previous Year",nextYear:"Next Year",selectDecade:"Select Decade",prevDecade:"Previous Decade",nextDecade:"Next Decade",prevCentury:"Previous Century",nextCentury:"Next Century",pickHour:"Pick Hour",incrementHour:"Increment Hour",decrementHour:"Decrement Hour",pickMinute:"Pick Minute",incrementMinute:"Increment Minute",decrementMinute:"Decrement Minute",pickSecond:"Pick Second",incrementSecond:"Increment Second",decrementSecond:"Decrement Second",togglePeriod:"Toggle Period",selectTime:"Select Time"},useStrict:!1,sideBySide:!1,daysOfWeekDisabled:!1,calendarWeeks:!1,viewMode:"days",toolbarPlacement:"default",showTodayButton:!1,showClear:!1,showClose:!1,widgetPositioning:{horizontal:"auto",vertical:"auto"},widgetParent:null,ignoreReadonly:!1,keepOpen:!1,focusOnShow:!0,inline:!1,keepInvalid:!1,datepickerInput:".datepickerinput",keyBinds:{up:function(a){if(a){var b=this.date()||this.getMoment();a.find(".datepicker").is(":visible")?this.date(b.clone().subtract(7,"d")):this.date(b.clone().add(this.stepping(),"m"))}},down:function(a){if(!a)return void this.show();var b=this.date()||this.getMoment();a.find(".datepicker").is(":visible")?this.date(b.clone().add(7,"d")):this.date(b.clone().subtract(this.stepping(),"m"))},"control up":function(a){if(a){var b=this.date()||this.getMoment();a.find(".datepicker").is(":visible")?this.date(b.clone().subtract(1,"y")):this.date(b.clone().add(1,"h"))}},"control down":function(a){if(a){var b=this.date()||this.getMoment();a.find(".datepicker").is(":visible")?this.date(b.clone().add(1,"y")):this.date(b.clone().subtract(1,"h"))}},left:function(a){if(a){var b=this.date()||this.getMoment();a.find(".datepicker").is(":visible")&&this.date(b.clone().subtract(1,"d"))}},right:function(a){if(a){var b=this.date()||this.getMoment();a.find(".datepicker").is(":visible")&&this.date(b.clone().add(1,"d"))}},pageUp:function(a){if(a){var b=this.date()||this.getMoment();a.find(".datepicker").is(":visible")&&this.date(b.clone().subtract(1,"M"))}},pageDown:function(a){if(a){var b=this.date()||this.getMoment();a.find(".datepicker").is(":visible")&&this.date(b.clone().add(1,"M"))}},enter:function(){this.hide()},escape:function(){this.hide()},"control space":function(a){a.find(".timepicker").is(":visible")&&a.find('.btn[data-action="togglePeriod"]').click()},t:function(){this.date(this.getMoment())},"delete":function(){this.clear()}},debug:!1,allowInputToggle:!1,disabledTimeIntervals:!1,disabledHours:!1,enabledHours:!1,viewDate:!1}});
+\ No newline at end of file
+diff --git a/openstack_dashboard/static/dashboard/logmanagement/horizon-logmanagement-stat.png b/openstack_dashboard/static/dashboard/logmanagement/horizon-logmanagement-stat.png
+index cffac95332c6c6e51f48bc54c1248b86a800dd6e..a9fd8c1c07732608bf45d9abc4dcb65c904beb2c 100644
+GIT binary patch
+literal 18522
+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
+
+literal 22277
+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
+CR?<cQ
+
+diff --git a/openstack_dashboard/static/dashboard/logmanagement/moment.min.js b/openstack_dashboard/static/dashboard/logmanagement/moment.min.js
+new file mode 100644
+index 0000000..8e6866a
+--- /dev/null
++++ b/openstack_dashboard/static/dashboard/logmanagement/moment.min.js
+@@ -0,0 +1,7 @@
++//! moment.js
++//! version : 2.10.6
++//! authors : Tim Wood, Iskren Chernev, Moment.js contributors
++//! license : MIT
++//! momentjs.com
++!function(a,b){"object"==typeof exports&&"undefined"!=typeof module?module.exports=b():"function"==typeof define&&define.amd?define(b):a.moment=b()}(this,function(){"use strict";function a(){return Hc.apply(null,arguments)}function b(a){Hc=a}function c(a){return"[object Array]"===Object.prototype.toString.call(a)}function d(a){return a instanceof Date||"[object Date]"===Object.prototype.toString.call(a)}function e(a,b){var c,d=[];for(c=0;c<a.length;++c)d.push(b(a[c],c));return d}function f(a,b){return Object.prototype.hasOwnProperty.call(a,b)}function g(a,b){for(var c in b)f(b,c)&&(a[c]=b[c]);return f(b,"toString")&&(a.toString=b.toString),f(b,"valueOf")&&(a.valueOf=b.valueOf),a}function h(a,b,c,d){return Ca(a,b,c,d,!0).utc()}function i(){return{empty:!1,unusedTokens:[],unusedInput:[],overflow:-2,charsLeftOver:0,nullInput:!1,invalidMonth:null,invalidFormat:!1,userInvalidated:!1,iso:!1}}function j(a){return null==a._pf&&(a._pf=i()),a._pf}function k(a){if(null==a._isValid){var b=j(a);a._isValid=!(isNaN(a._d.getTime())||!(b.overflow<0)||b.empty||b.invalidMonth||b.invalidWeekday||b.nullInput||b.invalidFormat||b.userInvalidated),a._strict&&(a._isValid=a._isValid&&0===b.charsLeftOver&&0===b.unusedTokens.length&&void 0===b.bigHour)}return a._isValid}function l(a){var b=h(NaN);return null!=a?g(j(b),a):j(b).userInvalidated=!0,b}function m(a,b){var c,d,e;if("undefined"!=typeof b._isAMomentObject&&(a._isAMomentObject=b._isAMomentObject),"undefined"!=typeof b._i&&(a._i=b._i),"undefined"!=typeof b._f&&(a._f=b._f),"undefined"!=typeof b._l&&(a._l=b._l),"undefined"!=typeof b._strict&&(a._strict=b._strict),"undefined"!=typeof b._tzm&&(a._tzm=b._tzm),"undefined"!=typeof b._isUTC&&(a._isUTC=b._isUTC),"undefined"!=typeof b._offset&&(a._offset=b._offset),"undefined"!=typeof b._pf&&(a._pf=j(b)),"undefined"!=typeof b._locale&&(a._locale=b._locale),Jc.length>0)for(c in Jc)d=Jc[c],e=b[d],"undefined"!=typeof e&&(a[d]=e);return a}function n(b){m(this,b),this._d=new Date(null!=b._d?b._d.getTime():NaN),Kc===!1&&(Kc=!0,a.updateOffset(this),Kc=!1)}function o(a){return a instanceof n||null!=a&&null!=a._isAMomentObject}function p(a){return 0>a?Math.ceil(a):Math.floor(a)}function q(a){var b=+a,c=0;return 0!==b&&isFinite(b)&&(c=p(b)),c}function r(a,b,c){var d,e=Math.min(a.length,b.length),f=Math.abs(a.length-b.length),g=0;for(d=0;e>d;d++)(c&&a[d]!==b[d]||!c&&q(a[d])!==q(b[d]))&&g++;return g+f}function s(){}function t(a){return a?a.toLowerCase().replace("_","-"):a}function u(a){for(var b,c,d,e,f=0;f<a.length;){for(e=t(a[f]).split("-"),b=e.length,c=t(a[f+1]),c=c?c.split("-"):null;b>0;){if(d=v(e.slice(0,b).join("-")))return d;if(c&&c.length>=b&&r(e,c,!0)>=b-1)break;b--}f++}return null}function v(a){var b=null;if(!Lc[a]&&"undefined"!=typeof module&&module&&module.exports)try{b=Ic._abbr,require("./locale/"+a),w(b)}catch(c){}return Lc[a]}function w(a,b){var c;return a&&(c="undefined"==typeof b?y(a):x(a,b),c&&(Ic=c)),Ic._abbr}function x(a,b){return null!==b?(b.abbr=a,Lc[a]=Lc[a]||new s,Lc[a].set(b),w(a),Lc[a]):(delete Lc[a],null)}function y(a){var b;if(a&&a._locale&&a._locale._abbr&&(a=a._locale._abbr),!a)return Ic;if(!c(a)){if(b=v(a))return b;a=[a]}return u(a)}function z(a,b){var c=a.toLowerCase();Mc[c]=Mc[c+"s"]=Mc[b]=a}function A(a){return"string"==typeof a?Mc[a]||Mc[a.toLowerCase()]:void 0}function B(a){var b,c,d={};for(c in a)f(a,c)&&(b=A(c),b&&(d[b]=a[c]));return d}function C(b,c){return function(d){return null!=d?(E(this,b,d),a.updateOffset(this,c),this):D(this,b)}}function D(a,b){return a._d["get"+(a._isUTC?"UTC":"")+b]()}function E(a,b,c){return a._d["set"+(a._isUTC?"UTC":"")+b](c)}function F(a,b){var c;if("object"==typeof a)for(c in a)this.set(c,a[c]);else if(a=A(a),"function"==typeof this[a])return this[a](b);return this}function G(a,b,c){var d=""+Math.abs(a),e=b-d.length,f=a>=0;return(f?c?"+":"":"-")+Math.pow(10,Math.max(0,e)).toString().substr(1)+d}function H(a,b,c,d){var e=d;"string"==typeof d&&(e=function(){return this[d]()}),a&&(Qc[a]=e),b&&(Qc[b[0]]=function(){return G(e.apply(this,arguments),b[1],b[2])}),c&&(Qc[c]=function(){return this.localeData().ordinal(e.apply(this,arguments),a)})}function I(a){return a.match(/\[[\s\S]/)?a.replace(/^\[|\]$/g,""):a.replace(/\\/g,"")}function J(a){var b,c,d=a.match(Nc);for(b=0,c=d.length;c>b;b++)Qc[d[b]]?d[b]=Qc[d[b]]:d[b]=I(d[b]);return function(e){var f="";for(b=0;c>b;b++)f+=d[b]instanceof Function?d[b].call(e,a):d[b];return f}}function K(a,b){return a.isValid()?(b=L(b,a.localeData()),Pc[b]=Pc[b]||J(b),Pc[b](a)):a.localeData().invalidDate()}function L(a,b){function c(a){return b.longDateFormat(a)||a}var d=5;for(Oc.lastIndex=0;d>=0&&Oc.test(a);)a=a.replace(Oc,c),Oc.lastIndex=0,d-=1;return a}function M(a){return"function"==typeof a&&"[object Function]"===Object.prototype.toString.call(a)}function N(a,b,c){dd[a]=M(b)?b:function(a){return a&&c?c:b}}function O(a,b){return f(dd,a)?dd[a](b._strict,b._locale):new RegExp(P(a))}function P(a){return a.replace("\\","").replace(/\\(\[)|\\(\])|\[([^\]\[]*)\]|\\(.)/g,function(a,b,c,d,e){return b||c||d||e}).replace(/[-\/\\^$*+?.()|[\]{}]/g,"\\$&")}function Q(a,b){var c,d=b;for("string"==typeof a&&(a=[a]),"number"==typeof b&&(d=function(a,c){c[b]=q(a)}),c=0;c<a.length;c++)ed[a[c]]=d}function R(a,b){Q(a,function(a,c,d,e){d._w=d._w||{},b(a,d._w,d,e)})}function S(a,b,c){null!=b&&f(ed,a)&&ed[a](b,c._a,c,a)}function T(a,b){return new Date(Date.UTC(a,b+1,0)).getUTCDate()}function U(a){return this._months[a.month()]}function V(a){return this._monthsShort[a.month()]}function W(a,b,c){var d,e,f;for(this._monthsParse||(this._monthsParse=[],this._longMonthsParse=[],this._shortMonthsParse=[]),d=0;12>d;d++){if(e=h([2e3,d]),c&&!this._longMonthsParse[d]&&(this._longMonthsParse[d]=new RegExp("^"+this.months(e,"").replace(".","")+"$","i"),this._shortMonthsParse[d]=new RegExp("^"+this.monthsShort(e,"").replace(".","")+"$","i")),c||this._monthsParse[d]||(f="^"+this.months(e,"")+"|^"+this.monthsShort(e,""),this._monthsParse[d]=new RegExp(f.replace(".",""),"i")),c&&"MMMM"===b&&this._longMonthsParse[d].test(a))return d;if(c&&"MMM"===b&&this._shortMonthsParse[d].test(a))return d;if(!c&&this._monthsParse[d].test(a))return d}}function X(a,b){var c;return"string"==typeof b&&(b=a.localeData().monthsParse(b),"number"!=typeof b)?a:(c=Math.min(a.date(),T(a.year(),b)),a._d["set"+(a._isUTC?"UTC":"")+"Month"](b,c),a)}function Y(b){return null!=b?(X(this,b),a.updateOffset(this,!0),this):D(this,"Month")}function Z(){return T(this.year(),this.month())}function $(a){var b,c=a._a;return c&&-2===j(a).overflow&&(b=c[gd]<0||c[gd]>11?gd:c[hd]<1||c[hd]>T(c[fd],c[gd])?hd:c[id]<0||c[id]>24||24===c[id]&&(0!==c[jd]||0!==c[kd]||0!==c[ld])?id:c[jd]<0||c[jd]>59?jd:c[kd]<0||c[kd]>59?kd:c[ld]<0||c[ld]>999?ld:-1,j(a)._overflowDayOfYear&&(fd>b||b>hd)&&(b=hd),j(a).overflow=b),a}function _(b){a.suppressDeprecationWarnings===!1&&"undefined"!=typeof console&&console.warn&&console.warn("Deprecation warning: "+b)}function aa(a,b){var c=!0;return g(function(){return c&&(_(a+"\n"+(new Error).stack),c=!1),b.apply(this,arguments)},b)}function ba(a,b){od[a]||(_(b),od[a]=!0)}function ca(a){var b,c,d=a._i,e=pd.exec(d);if(e){for(j(a).iso=!0,b=0,c=qd.length;c>b;b++)if(qd[b][1].exec(d)){a._f=qd[b][0];break}for(b=0,c=rd.length;c>b;b++)if(rd[b][1].exec(d)){a._f+=(e[6]||" ")+rd[b][0];break}d.match(ad)&&(a._f+="Z"),va(a)}else a._isValid=!1}function da(b){var c=sd.exec(b._i);return null!==c?void(b._d=new Date(+c[1])):(ca(b),void(b._isValid===!1&&(delete b._isValid,a.createFromInputFallback(b))))}function ea(a,b,c,d,e,f,g){var h=new Date(a,b,c,d,e,f,g);return 1970>a&&h.setFullYear(a),h}function fa(a){var b=new Date(Date.UTC.apply(null,arguments));return 1970>a&&b.setUTCFullYear(a),b}function ga(a){return ha(a)?366:365}function ha(a){return a%4===0&&a%100!==0||a%400===0}function ia(){return ha(this.year())}function ja(a,b,c){var d,e=c-b,f=c-a.day();return f>e&&(f-=7),e-7>f&&(f+=7),d=Da(a).add(f,"d"),{week:Math.ceil(d.dayOfYear()/7),year:d.year()}}function ka(a){return ja(a,this._week.dow,this._week.doy).week}function la(){return this._week.dow}function ma(){return this._week.doy}function na(a){var b=this.localeData().week(this);return null==a?b:this.add(7*(a-b),"d")}function oa(a){var b=ja(this,1,4).week;return null==a?b:this.add(7*(a-b),"d")}function pa(a,b,c,d,e){var f,g=6+e-d,h=fa(a,0,1+g),i=h.getUTCDay();return e>i&&(i+=7),c=null!=c?1*c:e,f=1+g+7*(b-1)-i+c,{year:f>0?a:a-1,dayOfYear:f>0?f:ga(a-1)+f}}function qa(a){var b=Math.round((this.clone().startOf("day")-this.clone().startOf("year"))/864e5)+1;return null==a?b:this.add(a-b,"d")}function ra(a,b,c){return null!=a?a:null!=b?b:c}function sa(a){var b=new Date;return a._useUTC?[b.getUTCFullYear(),b.getUTCMonth(),b.getUTCDate()]:[b.getFullYear(),b.getMonth(),b.getDate()]}function ta(a){var b,c,d,e,f=[];if(!a._d){for(d=sa(a),a._w&&null==a._a[hd]&&null==a._a[gd]&&ua(a),a._dayOfYear&&(e=ra(a._a[fd],d[fd]),a._dayOfYear>ga(e)&&(j(a)._overflowDayOfYear=!0),c=fa(e,0,a._dayOfYear),a._a[gd]=c.getUTCMonth(),a._a[hd]=c.getUTCDate()),b=0;3>b&&null==a._a[b];++b)a._a[b]=f[b]=d[b];for(;7>b;b++)a._a[b]=f[b]=null==a._a[b]?2===b?1:0:a._a[b];24===a._a[id]&&0===a._a[jd]&&0===a._a[kd]&&0===a._a[ld]&&(a._nextDay=!0,a._a[id]=0),a._d=(a._useUTC?fa:ea).apply(null,f),null!=a._tzm&&a._d.setUTCMinutes(a._d.getUTCMinutes()-a._tzm),a._nextDay&&(a._a[id]=24)}}function ua(a){var b,c,d,e,f,g,h;b=a._w,null!=b.GG||null!=b.W||null!=b.E?(f=1,g=4,c=ra(b.GG,a._a[fd],ja(Da(),1,4).year),d=ra(b.W,1),e=ra(b.E,1)):(f=a._locale._week.dow,g=a._locale._week.doy,c=ra(b.gg,a._a[fd],ja(Da(),f,g).year),d=ra(b.w,1),null!=b.d?(e=b.d,f>e&&++d):e=null!=b.e?b.e+f:f),h=pa(c,d,e,g,f),a._a[fd]=h.year,a._dayOfYear=h.dayOfYear}function va(b){if(b._f===a.ISO_8601)return void ca(b);b._a=[],j(b).empty=!0;var c,d,e,f,g,h=""+b._i,i=h.length,k=0;for(e=L(b._f,b._locale).match(Nc)||[],c=0;c<e.length;c++)f=e[c],d=(h.match(O(f,b))||[])[0],d&&(g=h.substr(0,h.indexOf(d)),g.length>0&&j(b).unusedInput.push(g),h=h.slice(h.indexOf(d)+d.length),k+=d.length),Qc[f]?(d?j(b).empty=!1:j(b).unusedTokens.push(f),S(f,d,b)):b._strict&&!d&&j(b).unusedTokens.push(f);j(b).charsLeftOver=i-k,h.length>0&&j(b).unusedInput.push(h),j(b).bigHour===!0&&b._a[id]<=12&&b._a[id]>0&&(j(b).bigHour=void 0),b._a[id]=wa(b._locale,b._a[id],b._meridiem),ta(b),$(b)}function wa(a,b,c){var d;return null==c?b:null!=a.meridiemHour?a.meridiemHour(b,c):null!=a.isPM?(d=a.isPM(c),d&&12>b&&(b+=12),d||12!==b||(b=0),b):b}function xa(a){var b,c,d,e,f;if(0===a._f.length)return j(a).invalidFormat=!0,void(a._d=new Date(NaN));for(e=0;e<a._f.length;e++)f=0,b=m({},a),null!=a._useUTC&&(b._useUTC=a._useUTC),b._f=a._f[e],va(b),k(b)&&(f+=j(b).charsLeftOver,f+=10*j(b).unusedTokens.length,j(b).score=f,(null==d||d>f)&&(d=f,c=b));g(a,c||b)}function ya(a){if(!a._d){var b=B(a._i);a._a=[b.year,b.month,b.day||b.date,b.hour,b.minute,b.second,b.millisecond],ta(a)}}function za(a){var b=new n($(Aa(a)));return b._nextDay&&(b.add(1,"d"),b._nextDay=void 0),b}function Aa(a){var b=a._i,e=a._f;return a._locale=a._locale||y(a._l),null===b||void 0===e&&""===b?l({nullInput:!0}):("string"==typeof b&&(a._i=b=a._locale.preparse(b)),o(b)?new n($(b)):(c(e)?xa(a):e?va(a):d(b)?a._d=b:Ba(a),a))}function Ba(b){var f=b._i;void 0===f?b._d=new Date:d(f)?b._d=new Date(+f):"string"==typeof f?da(b):c(f)?(b._a=e(f.slice(0),function(a){return parseInt(a,10)}),ta(b)):"object"==typeof f?ya(b):"number"==typeof f?b._d=new Date(f):a.createFromInputFallback(b)}function Ca(a,b,c,d,e){var f={};return"boolean"==typeof c&&(d=c,c=void 0),f._isAMomentObject=!0,f._useUTC=f._isUTC=e,f._l=c,f._i=a,f._f=b,f._strict=d,za(f)}function Da(a,b,c,d){return Ca(a,b,c,d,!1)}function Ea(a,b){var d,e;if(1===b.length&&c(b[0])&&(b=b[0]),!b.length)return Da();for(d=b[0],e=1;e<b.length;++e)(!b[e].isValid()||b[e][a](d))&&(d=b[e]);return d}function Fa(){var a=[].slice.call(arguments,0);return Ea("isBefore",a)}function Ga(){var a=[].slice.call(arguments,0);return Ea("isAfter",a)}function Ha(a){var b=B(a),c=b.year||0,d=b.quarter||0,e=b.month||0,f=b.week||0,g=b.day||0,h=b.hour||0,i=b.minute||0,j=b.second||0,k=b.millisecond||0;this._milliseconds=+k+1e3*j+6e4*i+36e5*h,this._days=+g+7*f,this._months=+e+3*d+12*c,this._data={},this._locale=y(),this._bubble()}function Ia(a){return a instanceof Ha}function Ja(a,b){H(a,0,0,function(){var a=this.utcOffset(),c="+";return 0>a&&(a=-a,c="-"),c+G(~~(a/60),2)+b+G(~~a%60,2)})}function Ka(a){var b=(a||"").match(ad)||[],c=b[b.length-1]||[],d=(c+"").match(xd)||["-",0,0],e=+(60*d[1])+q(d[2]);return"+"===d[0]?e:-e}function La(b,c){var e,f;return c._isUTC?(e=c.clone(),f=(o(b)||d(b)?+b:+Da(b))-+e,e._d.setTime(+e._d+f),a.updateOffset(e,!1),e):Da(b).local()}function Ma(a){return 15*-Math.round(a._d.getTimezoneOffset()/15)}function Na(b,c){var d,e=this._offset||0;return null!=b?("string"==typeof b&&(b=Ka(b)),Math.abs(b)<16&&(b=60*b),!this._isUTC&&c&&(d=Ma(this)),this._offset=b,this._isUTC=!0,null!=d&&this.add(d,"m"),e!==b&&(!c||this._changeInProgress?bb(this,Ya(b-e,"m"),1,!1):this._changeInProgress||(this._changeInProgress=!0,a.updateOffset(this,!0),this._changeInProgress=null)),this):this._isUTC?e:Ma(this)}function Oa(a,b){return null!=a?("string"!=typeof a&&(a=-a),this.utcOffset(a,b),this):-this.utcOffset()}function Pa(a){return this.utcOffset(0,a)}function Qa(a){return this._isUTC&&(this.utcOffset(0,a),this._isUTC=!1,a&&this.subtract(Ma(this),"m")),this}function Ra(){return this._tzm?this.utcOffset(this._tzm):"string"==typeof this._i&&this.utcOffset(Ka(this._i)),this}function Sa(a){return a=a?Da(a).utcOffset():0,(this.utcOffset()-a)%60===0}function Ta(){return this.utcOffset()>this.clone().month(0).utcOffset()||this.utcOffset()>this.clone().month(5).utcOffset()}function Ua(){if("undefined"!=typeof this._isDSTShifted)return this._isDSTShifted;var a={};if(m(a,this),a=Aa(a),a._a){var b=a._isUTC?h(a._a):Da(a._a);this._isDSTShifted=this.isValid()&&r(a._a,b.toArray())>0}else this._isDSTShifted=!1;return this._isDSTShifted}function Va(){return!this._isUTC}function Wa(){return this._isUTC}function Xa(){return this._isUTC&&0===this._offset}function Ya(a,b){var c,d,e,g=a,h=null;return Ia(a)?g={ms:a._milliseconds,d:a._days,M:a._months}:"number"==typeof a?(g={},b?g[b]=a:g.milliseconds=a):(h=yd.exec(a))?(c="-"===h[1]?-1:1,g={y:0,d:q(h[hd])*c,h:q(h[id])*c,m:q(h[jd])*c,s:q(h[kd])*c,ms:q(h[ld])*c}):(h=zd.exec(a))?(c="-"===h[1]?-1:1,g={y:Za(h[2],c),M:Za(h[3],c),d:Za(h[4],c),h:Za(h[5],c),m:Za(h[6],c),s:Za(h[7],c),w:Za(h[8],c)}):null==g?g={}:"object"==typeof g&&("from"in g||"to"in g)&&(e=_a(Da(g.from),Da(g.to)),g={},g.ms=e.milliseconds,g.M=e.months),d=new Ha(g),Ia(a)&&f(a,"_locale")&&(d._locale=a._locale),d}function Za(a,b){var c=a&&parseFloat(a.replace(",","."));return(isNaN(c)?0:c)*b}function $a(a,b){var c={milliseconds:0,months:0};return c.months=b.month()-a.month()+12*(b.year()-a.year()),a.clone().add(c.months,"M").isAfter(b)&&--c.months,c.milliseconds=+b-+a.clone().add(c.months,"M"),c}function _a(a,b){var c;return b=La(b,a),a.isBefore(b)?c=$a(a,b):(c=$a(b,a),c.milliseconds=-c.milliseconds,c.months=-c.months),c}function ab(a,b){return function(c,d){var e,f;return null===d||isNaN(+d)||(ba(b,"moment()."+b+"(period, number) is deprecated. Please use moment()."+b+"(number, period)."),f=c,c=d,d=f),c="string"==typeof c?+c:c,e=Ya(c,d),bb(this,e,a),this}}function bb(b,c,d,e){var f=c._milliseconds,g=c._days,h=c._months;e=null==e?!0:e,f&&b._d.setTime(+b._d+f*d),g&&E(b,"Date",D(b,"Date")+g*d),h&&X(b,D(b,"Month")+h*d),e&&a.updateOffset(b,g||h)}function cb(a,b){var c=a||Da(),d=La(c,this).startOf("day"),e=this.diff(d,"days",!0),f=-6>e?"sameElse":-1>e?"lastWeek":0>e?"lastDay":1>e?"sameDay":2>e?"nextDay":7>e?"nextWeek":"sameElse";return this.format(b&&b[f]||this.localeData().calendar(f,this,Da(c)))}function db(){return new n(this)}function eb(a,b){var c;return b=A("undefined"!=typeof b?b:"millisecond"),"millisecond"===b?(a=o(a)?a:Da(a),+this>+a):(c=o(a)?+a:+Da(a),c<+this.clone().startOf(b))}function fb(a,b){var c;return b=A("undefined"!=typeof b?b:"millisecond"),"millisecond"===b?(a=o(a)?a:Da(a),+a>+this):(c=o(a)?+a:+Da(a),+this.clone().endOf(b)<c)}function gb(a,b,c){return this.isAfter(a,c)&&this.isBefore(b,c)}function hb(a,b){var c;return b=A(b||"millisecond"),"millisecond"===b?(a=o(a)?a:Da(a),+this===+a):(c=+Da(a),+this.clone().startOf(b)<=c&&c<=+this.clone().endOf(b))}function ib(a,b,c){var d,e,f=La(a,this),g=6e4*(f.utcOffset()-this.utcOffset());return b=A(b),"year"===b||"month"===b||"quarter"===b?(e=jb(this,f),"quarter"===b?e/=3:"year"===b&&(e/=12)):(d=this-f,e="second"===b?d/1e3:"minute"===b?d/6e4:"hour"===b?d/36e5:"day"===b?(d-g)/864e5:"week"===b?(d-g)/6048e5:d),c?e:p(e)}function jb(a,b){var c,d,e=12*(b.year()-a.year())+(b.month()-a.month()),f=a.clone().add(e,"months");return 0>b-f?(c=a.clone().add(e-1,"months"),d=(b-f)/(f-c)):(c=a.clone().add(e+1,"months"),d=(b-f)/(c-f)),-(e+d)}function kb(){return this.clone().locale("en").format("ddd MMM DD YYYY HH:mm:ss [GMT]ZZ")}function lb(){var a=this.clone().utc();return 0<a.year()&&a.year()<=9999?"function"==typeof Date.prototype.toISOString?this.toDate().toISOString():K(a,"YYYY-MM-DD[T]HH:mm:ss.SSS[Z]"):K(a,"YYYYYY-MM-DD[T]HH:mm:ss.SSS[Z]")}function mb(b){var c=K(this,b||a.defaultFormat);return this.localeData().postformat(c)}function nb(a,b){return this.isValid()?Ya({to:this,from:a}).locale(this.locale()).humanize(!b):this.localeData().invalidDate()}function ob(a){return this.from(Da(),a)}function pb(a,b){return this.isValid()?Ya({from:this,to:a}).locale(this.locale()).humanize(!b):this.localeData().invalidDate()}function qb(a){return this.to(Da(),a)}function rb(a){var b;return void 0===a?this._locale._abbr:(b=y(a),null!=b&&(this._locale=b),this)}function sb(){return this._locale}function tb(a){switch(a=A(a)){case"year":this.month(0);case"quarter":case"month":this.date(1);case"week":case"isoWeek":case"day":this.hours(0);case"hour":this.minutes(0);case"minute":this.seconds(0);case"second":this.milliseconds(0)}return"week"===a&&this.weekday(0),"isoWeek"===a&&this.isoWeekday(1),"quarter"===a&&this.month(3*Math.floor(this.month()/3)),this}function ub(a){return a=A(a),void 0===a||"millisecond"===a?this:this.startOf(a).add(1,"isoWeek"===a?"week":a).subtract(1,"ms")}function vb(){return+this._d-6e4*(this._offset||0)}function wb(){return Math.floor(+this/1e3)}function xb(){return this._offset?new Date(+this):this._d}function yb(){var a=this;return[a.year(),a.month(),a.date(),a.hour(),a.minute(),a.second(),a.millisecond()]}function zb(){var a=this;return{years:a.year(),months:a.month(),date:a.date(),hours:a.hours(),minutes:a.minutes(),seconds:a.seconds(),milliseconds:a.milliseconds()}}function Ab(){return k(this)}function Bb(){return g({},j(this))}function Cb(){return j(this).overflow}function Db(a,b){H(0,[a,a.length],0,b)}function Eb(a,b,c){return ja(Da([a,11,31+b-c]),b,c).week}function Fb(a){var b=ja(this,this.localeData()._week.dow,this.localeData()._week.doy).year;return null==a?b:this.add(a-b,"y")}function Gb(a){var b=ja(this,1,4).year;return null==a?b:this.add(a-b,"y")}function Hb(){return Eb(this.year(),1,4)}function Ib(){var a=this.localeData()._week;return Eb(this.year(),a.dow,a.doy)}function Jb(a){return null==a?Math.ceil((this.month()+1)/3):this.month(3*(a-1)+this.month()%3)}function Kb(a,b){return"string"!=typeof a?a:isNaN(a)?(a=b.weekdaysParse(a),"number"==typeof a?a:null):parseInt(a,10)}function Lb(a){return this._weekdays[a.day()]}function Mb(a){return this._weekdaysShort[a.day()]}function Nb(a){return this._weekdaysMin[a.day()]}function Ob(a){var b,c,d;for(this._weekdaysParse=this._weekdaysParse||[],b=0;7>b;b++)if(this._weekdaysParse[b]||(c=Da([2e3,1]).day(b),d="^"+this.weekdays(c,"")+"|^"+this.weekdaysShort(c,"")+"|^"+this.weekdaysMin(c,""),this._weekdaysParse[b]=new RegExp(d.replace(".",""),"i")),this._weekdaysParse[b].test(a))return b}function Pb(a){var b=this._isUTC?this._d.getUTCDay():this._d.getDay();return null!=a?(a=Kb(a,this.localeData()),this.add(a-b,"d")):b}function Qb(a){var b=(this.day()+7-this.localeData()._week.dow)%7;return null==a?b:this.add(a-b,"d")}function Rb(a){return null==a?this.day()||7:this.day(this.day()%7?a:a-7)}function Sb(a,b){H(a,0,0,function(){return this.localeData().meridiem(this.hours(),this.minutes(),b)})}function Tb(a,b){return b._meridiemParse}function Ub(a){return"p"===(a+"").toLowerCase().charAt(0)}function Vb(a,b,c){return a>11?c?"pm":"PM":c?"am":"AM"}function Wb(a,b){b[ld]=q(1e3*("0."+a))}function Xb(){return this._isUTC?"UTC":""}function Yb(){return this._isUTC?"Coordinated Universal Time":""}function Zb(a){return Da(1e3*a)}function $b(){return Da.apply(null,arguments).parseZone()}function _b(a,b,c){var d=this._calendar[a];return"function"==typeof d?d.call(b,c):d}function ac(a){var b=this._longDateFormat[a],c=this._longDateFormat[a.toUpperCase()];return b||!c?b:(this._longDateFormat[a]=c.replace(/MMMM|MM|DD|dddd/g,function(a){return a.slice(1)}),this._longDateFormat[a])}function bc(){return this._invalidDate}function cc(a){return this._ordinal.replace("%d",a)}function dc(a){return a}function ec(a,b,c,d){var e=this._relativeTime[c];return"function"==typeof e?e(a,b,c,d):e.replace(/%d/i,a)}function fc(a,b){var c=this._relativeTime[a>0?"future":"past"];return"function"==typeof c?c(b):c.replace(/%s/i,b)}function gc(a){var b,c;for(c in a)b=a[c],"function"==typeof b?this[c]=b:this["_"+c]=b;this._ordinalParseLenient=new RegExp(this._ordinalParse.source+"|"+/\d{1,2}/.source)}function hc(a,b,c,d){var e=y(),f=h().set(d,b);return e[c](f,a)}function ic(a,b,c,d,e){if("number"==typeof a&&(b=a,a=void 0),a=a||"",null!=b)return hc(a,b,c,e);var f,g=[];for(f=0;d>f;f++)g[f]=hc(a,f,c,e);return g}function jc(a,b){return ic(a,b,"months",12,"month")}function kc(a,b){return ic(a,b,"monthsShort",12,"month")}function lc(a,b){return ic(a,b,"weekdays",7,"day")}function mc(a,b){return ic(a,b,"weekdaysShort",7,"day")}function nc(a,b){return ic(a,b,"weekdaysMin",7,"day")}function oc(){var a=this._data;return this._milliseconds=Wd(this._milliseconds),this._days=Wd(this._days),this._months=Wd(this._months),a.milliseconds=Wd(a.milliseconds),a.seconds=Wd(a.seconds),a.minutes=Wd(a.minutes),a.hours=Wd(a.hours),a.months=Wd(a.months),a.years=Wd(a.years),this}function pc(a,b,c,d){var e=Ya(b,c);return a._milliseconds+=d*e._milliseconds,a._days+=d*e._days,a._months+=d*e._months,a._bubble()}function qc(a,b){return pc(this,a,b,1)}function rc(a,b){return pc(this,a,b,-1)}function sc(a){return 0>a?Math.floor(a):Math.ceil(a)}function tc(){var a,b,c,d,e,f=this._milliseconds,g=this._days,h=this._months,i=this._data;return f>=0&&g>=0&&h>=0||0>=f&&0>=g&&0>=h||(f+=864e5*sc(vc(h)+g),g=0,h=0),i.milliseconds=f%1e3,a=p(f/1e3),i.seconds=a%60,b=p(a/60),i.minutes=b%60,c=p(b/60),i.hours=c%24,g+=p(c/24),e=p(uc(g)),h+=e,g-=sc(vc(e)),d=p(h/12),h%=12,i.days=g,i.months=h,i.years=d,this}function uc(a){return 4800*a/146097}function vc(a){return 146097*a/4800}function wc(a){var b,c,d=this._milliseconds;if(a=A(a),"month"===a||"year"===a)return b=this._days+d/864e5,c=this._months+uc(b),"month"===a?c:c/12;switch(b=this._days+Math.round(vc(this._months)),a){case"week":return b/7+d/6048e5;case"day":return b+d/864e5;case"hour":return 24*b+d/36e5;case"minute":return 1440*b+d/6e4;case"second":return 86400*b+d/1e3;case"millisecond":return Math.floor(864e5*b)+d;default:throw new Error("Unknown unit "+a)}}function xc(){return this._milliseconds+864e5*this._days+this._months%12*2592e6+31536e6*q(this._months/12)}function yc(a){return function(){return this.as(a)}}function zc(a){return a=A(a),this[a+"s"]()}function Ac(a){return function(){return this._data[a]}}function Bc(){return p(this.days()/7)}function Cc(a,b,c,d,e){return e.relativeTime(b||1,!!c,a,d)}function Dc(a,b,c){var d=Ya(a).abs(),e=ke(d.as("s")),f=ke(d.as("m")),g=ke(d.as("h")),h=ke(d.as("d")),i=ke(d.as("M")),j=ke(d.as("y")),k=e<le.s&&["s",e]||1===f&&["m"]||f<le.m&&["mm",f]||1===g&&["h"]||g<le.h&&["hh",g]||1===h&&["d"]||h<le.d&&["dd",h]||1===i&&["M"]||i<le.M&&["MM",i]||1===j&&["y"]||["yy",j];return k[2]=b,k[3]=+a>0,k[4]=c,Cc.apply(null,k)}function Ec(a,b){return void 0===le[a]?!1:void 0===b?le[a]:(le[a]=b,!0)}function Fc(a){var b=this.localeData(),c=Dc(this,!a,b);return a&&(c=b.pastFuture(+this,c)),b.postformat(c)}function Gc(){var a,b,c,d=me(this._milliseconds)/1e3,e=me(this._days),f=me(this._months);a=p(d/60),b=p(a/60),d%=60,a%=60,c=p(f/12),f%=12;var g=c,h=f,i=e,j=b,k=a,l=d,m=this.asSeconds();return m?(0>m?"-":"")+"P"+(g?g+"Y":"")+(h?h+"M":"")+(i?i+"D":"")+(j||k||l?"T":"")+(j?j+"H":"")+(k?k+"M":"")+(l?l+"S":""):"P0D"}var Hc,Ic,Jc=a.momentProperties=[],Kc=!1,Lc={},Mc={},Nc=/(\[[^\[]*\])|(\\)?(Mo|MM?M?M?|Do|DDDo|DD?D?D?|ddd?d?|do?|w[o|w]?|W[o|W]?|Q|YYYYYY|YYYYY|YYYY|YY|gg(ggg?)?|GG(GGG?)?|e|E|a|A|hh?|HH?|mm?|ss?|S{1,9}|x|X|zz?|ZZ?|.)/g,Oc=/(\[[^\[]*\])|(\\)?(LTS|LT|LL?L?L?|l{1,4})/g,Pc={},Qc={},Rc=/\d/,Sc=/\d\d/,Tc=/\d{3}/,Uc=/\d{4}/,Vc=/[+-]?\d{6}/,Wc=/\d\d?/,Xc=/\d{1,3}/,Yc=/\d{1,4}/,Zc=/[+-]?\d{1,6}/,$c=/\d+/,_c=/[+-]?\d+/,ad=/Z|[+-]\d\d:?\d\d/gi,bd=/[+-]?\d+(\.\d{1,3})?/,cd=/[0-9]*['a-z\u00A0-\u05FF\u0700-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]+|[\u0600-\u06FF\/]+(\s*?[\u0600-\u06FF]+){1,2}/i,dd={},ed={},fd=0,gd=1,hd=2,id=3,jd=4,kd=5,ld=6;H("M",["MM",2],"Mo",function(){return this.month()+1}),H("MMM",0,0,function(a){return this.localeData().monthsShort(this,a)}),H("MMMM",0,0,function(a){return this.localeData().months(this,a)}),z("month","M"),N("M",Wc),N("MM",Wc,Sc),N("MMM",cd),N("MMMM",cd),Q(["M","MM"],function(a,b){b[gd]=q(a)-1}),Q(["MMM","MMMM"],function(a,b,c,d){var e=c._locale.monthsParse(a,d,c._strict);null!=e?b[gd]=e:j(c).invalidMonth=a});var md="January_February_March_April_May_June_July_August_September_October_November_December".split("_"),nd="Jan_Feb_Mar_Apr_May_Jun_Jul_Aug_Sep_Oct_Nov_Dec".split("_"),od={};a.suppressDeprecationWarnings=!1;var pd=/^\s*(?:[+-]\d{6}|\d{4})-(?:(\d\d-\d\d)|(W\d\d$)|(W\d\d-\d)|(\d\d\d))((T| )(\d\d(:\d\d(:\d\d(\.\d+)?)?)?)?([\+\-]\d\d(?::?\d\d)?|\s*Z)?)?$/,qd=[["YYYYYY-MM-DD",/[+-]\d{6}-\d{2}-\d{2}/],["YYYY-MM-DD",/\d{4}-\d{2}-\d{2}/],["GGGG-[W]WW-E",/\d{4}-W\d{2}-\d/],["GGGG-[W]WW",/\d{4}-W\d{2}/],["YYYY-DDD",/\d{4}-\d{3}/]],rd=[["HH:mm:ss.SSSS",/(T| )\d\d:\d\d:\d\d\.\d+/],["HH:mm:ss",/(T| )\d\d:\d\d:\d\d/],["HH:mm",/(T| )\d\d:\d\d/],["HH",/(T| )\d\d/]],sd=/^\/?Date\((\-?\d+)/i;a.createFromInputFallback=aa("moment construction falls back to js Date. This is discouraged and will be removed in upcoming major release. Please refer to https://github.com/moment/moment/issues/1407 for more info.",function(a){a._d=new Date(a._i+(a._useUTC?" UTC":""))}),H(0,["YY",2],0,function(){return this.year()%100}),H(0,["YYYY",4],0,"year"),H(0,["YYYYY",5],0,"year"),H(0,["YYYYYY",6,!0],0,"year"),z("year","y"),N("Y",_c),N("YY",Wc,Sc),N("YYYY",Yc,Uc),N("YYYYY",Zc,Vc),N("YYYYYY",Zc,Vc),Q(["YYYYY","YYYYYY"],fd),Q("YYYY",function(b,c){c[fd]=2===b.length?a.parseTwoDigitYear(b):q(b)}),Q("YY",function(b,c){c[fd]=a.parseTwoDigitYear(b)}),a.parseTwoDigitYear=function(a){return q(a)+(q(a)>68?1900:2e3)};var td=C("FullYear",!1);H("w",["ww",2],"wo","week"),H("W",["WW",2],"Wo","isoWeek"),z("week","w"),z("isoWeek","W"),N("w",Wc),N("ww",Wc,Sc),N("W",Wc),N("WW",Wc,Sc),R(["w","ww","W","WW"],function(a,b,c,d){b[d.substr(0,1)]=q(a)});var ud={dow:0,doy:6};H("DDD",["DDDD",3],"DDDo","dayOfYear"),z("dayOfYear","DDD"),N("DDD",Xc),N("DDDD",Tc),Q(["DDD","DDDD"],function(a,b,c){c._dayOfYear=q(a)}),a.ISO_8601=function(){};var vd=aa("moment().min is deprecated, use moment.min instead. https://github.com/moment/moment/issues/1548",function(){var a=Da.apply(null,arguments);return this>a?this:a}),wd=aa("moment().max is deprecated, use moment.max instead. https://github.com/moment/moment/issues/1548",function(){var a=Da.apply(null,arguments);return a>this?this:a});Ja("Z",":"),Ja("ZZ",""),N("Z",ad),N("ZZ",ad),Q(["Z","ZZ"],function(a,b,c){c._useUTC=!0,c._tzm=Ka(a)});var xd=/([\+\-]|\d\d)/gi;a.updateOffset=function(){};var yd=/(\-)?(?:(\d*)\.)?(\d+)\:(\d+)(?:\:(\d+)\.?(\d{3})?)?/,zd=/^(-)?P(?:(?:([0-9,.]*)Y)?(?:([0-9,.]*)M)?(?:([0-9,.]*)D)?(?:T(?:([0-9,.]*)H)?(?:([0-9,.]*)M)?(?:([0-9,.]*)S)?)?|([0-9,.]*)W)$/;Ya.fn=Ha.prototype;var Ad=ab(1,"add"),Bd=ab(-1,"subtract");a.defaultFormat="YYYY-MM-DDTHH:mm:ssZ";var Cd=aa("moment().lang() is deprecated. Instead, use moment().localeData() to get the language configuration. Use moment().locale() to change languages.",function(a){return void 0===a?this.localeData():this.locale(a)});H(0,["gg",2],0,function(){return this.weekYear()%100}),H(0,["GG",2],0,function(){return this.isoWeekYear()%100}),Db("gggg","weekYear"),Db("ggggg","weekYear"),Db("GGGG","isoWeekYear"),Db("GGGGG","isoWeekYear"),z("weekYear","gg"),z("isoWeekYear","GG"),N("G",_c),N("g",_c),N("GG",Wc,Sc),N("gg",Wc,Sc),N("GGGG",Yc,Uc),N("gggg",Yc,Uc),N("GGGGG",Zc,Vc),N("ggggg",Zc,Vc),R(["gggg","ggggg","GGGG","GGGGG"],function(a,b,c,d){b[d.substr(0,2)]=q(a)}),R(["gg","GG"],function(b,c,d,e){c[e]=a.parseTwoDigitYear(b)}),H("Q",0,0,"quarter"),z("quarter","Q"),N("Q",Rc),Q("Q",function(a,b){b[gd]=3*(q(a)-1)}),H("D",["DD",2],"Do","date"),z("date","D"),N("D",Wc),N("DD",Wc,Sc),N("Do",function(a,b){return a?b._ordinalParse:b._ordinalParseLenient}),Q(["D","DD"],hd),Q("Do",function(a,b){b[hd]=q(a.match(Wc)[0],10)});var Dd=C("Date",!0);H("d",0,"do","day"),H("dd",0,0,function(a){return this.localeData().weekdaysMin(this,a)}),H("ddd",0,0,function(a){return this.localeData().weekdaysShort(this,a)}),H("dddd",0,0,function(a){return this.localeData().weekdays(this,a)}),H("e",0,0,"weekday"),H("E",0,0,"isoWeekday"),z("day","d"),z("weekday","e"),z("isoWeekday","E"),N("d",Wc),N("e",Wc),N("E",Wc),N("dd",cd),N("ddd",cd),N("dddd",cd),R(["dd","ddd","dddd"],function(a,b,c){var d=c._locale.weekdaysParse(a);null!=d?b.d=d:j(c).invalidWeekday=a}),R(["d","e","E"],function(a,b,c,d){b[d]=q(a)});var Ed="Sunday_Monday_Tuesday_Wednesday_Thursday_Friday_Saturday".split("_"),Fd="Sun_Mon_Tue_Wed_Thu_Fri_Sat".split("_"),Gd="Su_Mo_Tu_We_Th_Fr_Sa".split("_");H("H",["HH",2],0,"hour"),H("h",["hh",2],0,function(){return this.hours()%12||12}),Sb("a",!0),Sb("A",!1),z("hour","h"),N("a",Tb),N("A",Tb),N("H",Wc),N("h",Wc),N("HH",Wc,Sc),N("hh",Wc,Sc),Q(["H","HH"],id),Q(["a","A"],function(a,b,c){c._isPm=c._locale.isPM(a),c._meridiem=a}),Q(["h","hh"],function(a,b,c){b[id]=q(a),j(c).bigHour=!0});var Hd=/[ap]\.?m?\.?/i,Id=C("Hours",!0);H("m",["mm",2],0,"minute"),z("minute","m"),N("m",Wc),N("mm",Wc,Sc),Q(["m","mm"],jd);var Jd=C("Minutes",!1);H("s",["ss",2],0,"second"),z("second","s"),N("s",Wc),N("ss",Wc,Sc),Q(["s","ss"],kd);var Kd=C("Seconds",!1);H("S",0,0,function(){return~~(this.millisecond()/100)}),H(0,["SS",2],0,function(){return~~(this.millisecond()/10)}),H(0,["SSS",3],0,"millisecond"),H(0,["SSSS",4],0,function(){return 10*this.millisecond()}),H(0,["SSSSS",5],0,function(){return 100*this.millisecond()}),H(0,["SSSSSS",6],0,function(){return 1e3*this.millisecond()}),H(0,["SSSSSSS",7],0,function(){return 1e4*this.millisecond()}),H(0,["SSSSSSSS",8],0,function(){return 1e5*this.millisecond()}),H(0,["SSSSSSSSS",9],0,function(){return 1e6*this.millisecond()}),z("millisecond","ms"),N("S",Xc,Rc),N("SS",Xc,Sc),N("SSS",Xc,Tc);var Ld;for(Ld="SSSS";Ld.length<=9;Ld+="S")N(Ld,$c);for(Ld="S";Ld.length<=9;Ld+="S")Q(Ld,Wb);var Md=C("Milliseconds",!1);H("z",0,0,"zoneAbbr"),H("zz",0,0,"zoneName");var Nd=n.prototype;Nd.add=Ad,Nd.calendar=cb,Nd.clone=db,Nd.diff=ib,Nd.endOf=ub,Nd.format=mb,Nd.from=nb,Nd.fromNow=ob,Nd.to=pb,Nd.toNow=qb,Nd.get=F,Nd.invalidAt=Cb,Nd.isAfter=eb,Nd.isBefore=fb,Nd.isBetween=gb,Nd.isSame=hb,Nd.isValid=Ab,Nd.lang=Cd,Nd.locale=rb,Nd.localeData=sb,Nd.max=wd,Nd.min=vd,Nd.parsingFlags=Bb,Nd.set=F,Nd.startOf=tb,Nd.subtract=Bd,Nd.toArray=yb,Nd.toObject=zb,Nd.toDate=xb,Nd.toISOString=lb,Nd.toJSON=lb,Nd.toString=kb,Nd.unix=wb,Nd.valueOf=vb,Nd.year=td,Nd.isLeapYear=ia,Nd.weekYear=Fb,Nd.isoWeekYear=Gb,Nd.quarter=Nd.quarters=Jb,Nd.month=Y,Nd.daysInMonth=Z,Nd.week=Nd.weeks=na,Nd.isoWeek=Nd.isoWeeks=oa,Nd.weeksInYear=Ib,Nd.isoWeeksInYear=Hb,Nd.date=Dd,Nd.day=Nd.days=Pb,Nd.weekday=Qb,Nd.isoWeekday=Rb,Nd.dayOfYear=qa,Nd.hour=Nd.hours=Id,Nd.minute=Nd.minutes=Jd,Nd.second=Nd.seconds=Kd,
++Nd.millisecond=Nd.milliseconds=Md,Nd.utcOffset=Na,Nd.utc=Pa,Nd.local=Qa,Nd.parseZone=Ra,Nd.hasAlignedHourOffset=Sa,Nd.isDST=Ta,Nd.isDSTShifted=Ua,Nd.isLocal=Va,Nd.isUtcOffset=Wa,Nd.isUtc=Xa,Nd.isUTC=Xa,Nd.zoneAbbr=Xb,Nd.zoneName=Yb,Nd.dates=aa("dates accessor is deprecated. Use date instead.",Dd),Nd.months=aa("months accessor is deprecated. Use month instead",Y),Nd.years=aa("years accessor is deprecated. Use year instead",td),Nd.zone=aa("moment().zone is deprecated, use moment().utcOffset instead. https://github.com/moment/moment/issues/1779",Oa);var Od=Nd,Pd={sameDay:"[Today at] LT",nextDay:"[Tomorrow at] LT",nextWeek:"dddd [at] LT",lastDay:"[Yesterday at] LT",lastWeek:"[Last] dddd [at] LT",sameElse:"L"},Qd={LTS:"h:mm:ss A",LT:"h:mm A",L:"MM/DD/YYYY",LL:"MMMM D, YYYY",LLL:"MMMM D, YYYY h:mm A",LLLL:"dddd, MMMM D, YYYY h:mm A"},Rd="Invalid date",Sd="%d",Td=/\d{1,2}/,Ud={future:"in %s",past:"%s ago",s:"a few seconds",m:"a minute",mm:"%d minutes",h:"an hour",hh:"%d hours",d:"a day",dd:"%d days",M:"a month",MM:"%d months",y:"a year",yy:"%d years"},Vd=s.prototype;Vd._calendar=Pd,Vd.calendar=_b,Vd._longDateFormat=Qd,Vd.longDateFormat=ac,Vd._invalidDate=Rd,Vd.invalidDate=bc,Vd._ordinal=Sd,Vd.ordinal=cc,Vd._ordinalParse=Td,Vd.preparse=dc,Vd.postformat=dc,Vd._relativeTime=Ud,Vd.relativeTime=ec,Vd.pastFuture=fc,Vd.set=gc,Vd.months=U,Vd._months=md,Vd.monthsShort=V,Vd._monthsShort=nd,Vd.monthsParse=W,Vd.week=ka,Vd._week=ud,Vd.firstDayOfYear=ma,Vd.firstDayOfWeek=la,Vd.weekdays=Lb,Vd._weekdays=Ed,Vd.weekdaysMin=Nb,Vd._weekdaysMin=Gd,Vd.weekdaysShort=Mb,Vd._weekdaysShort=Fd,Vd.weekdaysParse=Ob,Vd.isPM=Ub,Vd._meridiemParse=Hd,Vd.meridiem=Vb,w("en",{ordinalParse:/\d{1,2}(th|st|nd|rd)/,ordinal:function(a){var b=a%10,c=1===q(a%100/10)?"th":1===b?"st":2===b?"nd":3===b?"rd":"th";return a+c}}),a.lang=aa("moment.lang is deprecated. Use moment.locale instead.",w),a.langData=aa("moment.langData is deprecated. Use moment.localeData instead.",y);var Wd=Math.abs,Xd=yc("ms"),Yd=yc("s"),Zd=yc("m"),$d=yc("h"),_d=yc("d"),ae=yc("w"),be=yc("M"),ce=yc("y"),de=Ac("milliseconds"),ee=Ac("seconds"),fe=Ac("minutes"),ge=Ac("hours"),he=Ac("days"),ie=Ac("months"),je=Ac("years"),ke=Math.round,le={s:45,m:45,h:22,d:26,M:11},me=Math.abs,ne=Ha.prototype;ne.abs=oc,ne.add=qc,ne.subtract=rc,ne.as=wc,ne.asMilliseconds=Xd,ne.asSeconds=Yd,ne.asMinutes=Zd,ne.asHours=$d,ne.asDays=_d,ne.asWeeks=ae,ne.asMonths=be,ne.asYears=ce,ne.valueOf=xc,ne._bubble=tc,ne.get=zc,ne.milliseconds=de,ne.seconds=ee,ne.minutes=fe,ne.hours=ge,ne.days=he,ne.weeks=Bc,ne.months=ie,ne.years=je,ne.humanize=Fc,ne.toISOString=Gc,ne.toString=Gc,ne.toJSON=Gc,ne.locale=rb,ne.localeData=sb,ne.toIsoString=aa("toIsoString() is deprecated. Please use toISOString() instead (notice the capitals)",Gc),ne.lang=Cd,H("X",0,0,"unix"),H("x",0,0,"valueOf"),N("x",_c),N("X",bd),Q("X",function(a,b,c){c._d=new Date(1e3*parseFloat(a,10))}),Q("x",function(a,b,c){c._d=new Date(q(a))}),a.version="2.10.6",b(Da),a.fn=Od,a.min=Fa,a.max=Ga,a.utc=h,a.unix=Zb,a.months=jc,a.isDate=d,a.locale=w,a.invalid=l,a.duration=Ya,a.isMoment=o,a.weekdays=lc,a.parseZone=$b,a.localeData=y,a.isDuration=Ia,a.monthsShort=kc,a.weekdaysMin=nc,a.defineLocale=x,a.weekdaysShort=mc,a.normalizeUnits=A,a.relativeTimeThreshold=Ec;var oe=a;return oe});
+\ No newline at end of file
+-- 
+2.5.0
+
