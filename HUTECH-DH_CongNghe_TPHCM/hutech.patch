@@ -1,0 +1,2357 @@
+From 37455f85210a017d484b404f4388ba70cef1d682 Mon Sep 17 00:00:00 2001
+From: Do Cao Thuong Duong <git@duongdev.me>
+Date: Thu, 26 Nov 2015 15:21:28 +0700
+Subject: [PATCH] @HUTECH
+
+---
+ openstack_dashboard/dashboards/logs/__init__.py    |    0
+ openstack_dashboard/dashboards/logs/dashboard.py   |   13 +
+ .../dashboards/logs/logs_config/__init__.py        |    0
+ .../dashboards/logs/logs_config/panel.py           |   11 +
+ .../logs_config/templates/logs_config/index.html   |   97 ++
+ .../dashboards/logs/logs_config/tests.py           |    7 +
+ .../dashboards/logs/logs_config/urls.py            |   11 +
+ .../dashboards/logs/logs_config/views.py           |   10 +
+ .../dashboards/logs/logsview/__init__.py           |    0
+ .../dashboards/logs/logsview/panel.py              |   11 +
+ .../dashboards/logs/logsview/tables.py             |   15 +
+ .../logs/logsview/templates/logsview/index.html    |  109 ++
+ .../dashboards/logs/logsview/tests.py              |    7 +
+ .../dashboards/logs/logsview/urls.py               |   11 +
+ .../dashboards/logs/logsview/views.py              |   17 +
+ openstack_dashboard/dashboards/logs/models.py      |    3 +
+ .../logs/static/logs/css/bootstrap-colorpicker.css |  251 +++++
+ .../static/logs/css/bootstrap-colorpicker.min.css  |    9 +
+ .../dashboards/logs/static/logs/css/logs.css       |    1 +
+ .../img/bootstrap-colorpicker/alpha-horizontal.png |  Bin 0 -> 3635 bytes
+ .../logs/img/bootstrap-colorpicker/alpha.png       |  Bin 0 -> 3271 bytes
+ .../img/bootstrap-colorpicker/hue-horizontal.png   |  Bin 0 -> 2837 bytes
+ .../static/logs/img/bootstrap-colorpicker/hue.png  |  Bin 0 -> 2972 bytes
+ .../logs/img/bootstrap-colorpicker/saturation.png  |  Bin 0 -> 8817 bytes
+ .../logs/static/logs/js/bootstrap-colorpicker.js   | 1084 ++++++++++++++++++++
+ .../static/logs/js/bootstrap-colorpicker.min.js    |    1 +
+ .../dashboards/logs/static/logs/js/logs.js         |    1 +
+ .../dashboards/logs/templates/logs/base.html       |   11 +
+ openstack_dashboard/enabled/_50_logs.py            |    7 +
+ 29 files changed, 1687 insertions(+)
+ create mode 100644 openstack_dashboard/dashboards/logs/__init__.py
+ create mode 100644 openstack_dashboard/dashboards/logs/dashboard.py
+ create mode 100644 openstack_dashboard/dashboards/logs/logs_config/__init__.py
+ create mode 100644 openstack_dashboard/dashboards/logs/logs_config/panel.py
+ create mode 100644 openstack_dashboard/dashboards/logs/logs_config/templates/logs_config/index.html
+ create mode 100644 openstack_dashboard/dashboards/logs/logs_config/tests.py
+ create mode 100644 openstack_dashboard/dashboards/logs/logs_config/urls.py
+ create mode 100644 openstack_dashboard/dashboards/logs/logs_config/views.py
+ create mode 100644 openstack_dashboard/dashboards/logs/logsview/__init__.py
+ create mode 100644 openstack_dashboard/dashboards/logs/logsview/panel.py
+ create mode 100644 openstack_dashboard/dashboards/logs/logsview/tables.py
+ create mode 100644 openstack_dashboard/dashboards/logs/logsview/templates/logsview/index.html
+ create mode 100644 openstack_dashboard/dashboards/logs/logsview/tests.py
+ create mode 100644 openstack_dashboard/dashboards/logs/logsview/urls.py
+ create mode 100644 openstack_dashboard/dashboards/logs/logsview/views.py
+ create mode 100644 openstack_dashboard/dashboards/logs/models.py
+ create mode 100644 openstack_dashboard/dashboards/logs/static/logs/css/bootstrap-colorpicker.css
+ create mode 100644 openstack_dashboard/dashboards/logs/static/logs/css/bootstrap-colorpicker.min.css
+ create mode 100644 openstack_dashboard/dashboards/logs/static/logs/css/logs.css
+ create mode 100644 openstack_dashboard/dashboards/logs/static/logs/img/bootstrap-colorpicker/alpha-horizontal.png
+ create mode 100644 openstack_dashboard/dashboards/logs/static/logs/img/bootstrap-colorpicker/alpha.png
+ create mode 100644 openstack_dashboard/dashboards/logs/static/logs/img/bootstrap-colorpicker/hue-horizontal.png
+ create mode 100644 openstack_dashboard/dashboards/logs/static/logs/img/bootstrap-colorpicker/hue.png
+ create mode 100644 openstack_dashboard/dashboards/logs/static/logs/img/bootstrap-colorpicker/saturation.png
+ create mode 100644 openstack_dashboard/dashboards/logs/static/logs/js/bootstrap-colorpicker.js
+ create mode 100644 openstack_dashboard/dashboards/logs/static/logs/js/bootstrap-colorpicker.min.js
+ create mode 100644 openstack_dashboard/dashboards/logs/static/logs/js/logs.js
+ create mode 100644 openstack_dashboard/dashboards/logs/templates/logs/base.html
+ create mode 100644 openstack_dashboard/enabled/_50_logs.py
+
+diff --git a/openstack_dashboard/dashboards/logs/__init__.py b/openstack_dashboard/dashboards/logs/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/openstack_dashboard/dashboards/logs/dashboard.py b/openstack_dashboard/dashboards/logs/dashboard.py
+new file mode 100644
+index 0000000..1f41df5
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logs/dashboard.py
+@@ -0,0 +1,13 @@
++from django.utils.translation import ugettext_lazy as _
++
++import horizon
++
++
++class Logs(horizon.Dashboard):
++    name = _("Log Management")
++    slug = "logs"
++    panels = ("logsview", "logs_config")  # Add your panels here.
++    default_panel = 'logsview'  # Specify the slug of the dashboard's default panel.
++
++
++horizon.register(Logs)
+diff --git a/openstack_dashboard/dashboards/logs/logs_config/__init__.py b/openstack_dashboard/dashboards/logs/logs_config/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/openstack_dashboard/dashboards/logs/logs_config/panel.py b/openstack_dashboard/dashboards/logs/logs_config/panel.py
+new file mode 100644
+index 0000000..8020521
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logs/logs_config/panel.py
+@@ -0,0 +1,11 @@
++from django.utils.translation import ugettext_lazy as _
++
++import horizon
++from openstack_dashboard.dashboards.logs import dashboard
++
++class Logs_Config(horizon.Panel):
++    name = _("Config")
++    slug = "logs_config"
++
++
++dashboard.Logs.register(Logs_Config)
+diff --git a/openstack_dashboard/dashboards/logs/logs_config/templates/logs_config/index.html b/openstack_dashboard/dashboards/logs/logs_config/templates/logs_config/index.html
+new file mode 100644
+index 0000000..fad55cb
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logs/logs_config/templates/logs_config/index.html
+@@ -0,0 +1,97 @@
++{% extends 'base.html' %}
++{% load i18n %}
++{% block title %}{% trans "Logs Config" %}{% endblock %}
++
++{% block page_header %}
++  <link rel="stylesheet" href="/static/logs/css/bootstrap-colorpicker.min.css" type="text/css" media="screen" />
++  {% include "horizon/common/_page_header.html" with title=_("Logs Config") %}
++{% endblock page_header %}
++
++{% block main %}
++<div class="row">
++  <div class="col-xs-12">
++    <div class="row">
++      <div class="col-md-4">
++        <div class="row">
++          <div class="col-md-3 _label">
++            <label>ERROR</label>
++          </div>
++          <div class="col-md-9">
++            <div class="input-group error">
++              <input type="text" value="" class="form-control" />
++              <span class="input-group-addon"><i></i></span>
++            </div>
++          </div>
++        </div>
++      </div>
++      <div class="col-md-4">
++        <div class="row">
++          <div class="col-md-3 _label">
++            <label>INFO</label>
++          </div>
++          <div class="col-md-9">
++            <div class="input-group info">
++              <input type="text" value="" class="form-control" />
++              <span class="input-group-addon"><i></i></span>
++            </div>
++          </div>
++        </div>
++      </div>
++    </div>
++    <div class="row">
++      <div class="col-md-4">
++        <div class="row">
++          <div class="col-md-3 _label">
++            <label>WARN</label>
++          </div>
++          <div class="col-md-9">
++            <div class="input-group warn">
++              <input type="text" value="" class="form-control" />
++              <span class="input-group-addon"><i></i></span>
++            </div>
++          </div>
++        </div>
++      </div>
++      <div class="col-md-4">
++        <div class="row">
++          <div class="col-md-3 _label">
++            <label>DEBUG</label>
++          </div>
++          <div class="col-md-9">
++            <div class="input-group debug">
++              <input type="text" value="" class="form-control" />
++              <span class="input-group-addon"><i></i></span>
++            </div>
++          </div>
++        </div>
++      </div>
++    </div>
++    <br/>
++    <button type="submit" class="btn btn-primary" onclick="alert('Chưa làm xong, không có gì đâu mà bấm :))')">Save config</button>
++  </div>
++</div>
++<script type="text/javascript" src="/static/logs/js/bootstrap-colorpicker.min.js"></script>
++<script>
++  $(function(){
++      $('.error').colorpicker({
++        color: '#ff0000'
++      });
++      $('.info').colorpicker({
++        color: '#24ff00'
++      });
++      $('.warn').colorpicker({
++        color: '#fff500'
++      });
++      $('.debug').colorpicker({
++        color: '#8a8a8a'
++      });
++  });
++</script>
++<style>
++  ._label{
++    line-height: 33px;
++  }
++</style>
++{% endblock %}
++
++
+diff --git a/openstack_dashboard/dashboards/logs/logs_config/tests.py b/openstack_dashboard/dashboards/logs/logs_config/tests.py
+new file mode 100644
+index 0000000..35af3c6
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logs/logs_config/tests.py
+@@ -0,0 +1,7 @@
++from horizon.test import helpers as test
++
++
++class Logs_ConfigTests(test.TestCase):
++    # Unit tests for logs_config.
++    def test_me(self):
++        self.assertTrue(1 + 1 == 2)
+diff --git a/openstack_dashboard/dashboards/logs/logs_config/urls.py b/openstack_dashboard/dashboards/logs/logs_config/urls.py
+new file mode 100644
+index 0000000..dccdb01
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logs/logs_config/urls.py
+@@ -0,0 +1,11 @@
++from django.conf.urls import patterns
++from django.conf.urls import url
++
++from openstack_dashboard.dashboards.logs.logs_config.views \
++    import IndexView
++
++
++urlpatterns = patterns(
++    '',
++    url(r'^$', IndexView.as_view(), name='index'),
++)
+diff --git a/openstack_dashboard/dashboards/logs/logs_config/views.py b/openstack_dashboard/dashboards/logs/logs_config/views.py
+new file mode 100644
+index 0000000..962f362
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logs/logs_config/views.py
+@@ -0,0 +1,10 @@
++from horizon import views
++
++
++class IndexView(views.APIView):
++    # A very simple class-based view...
++    template_name = 'logs/logs_config/index.html'
++
++    def get_data(self, request, context, *args, **kwargs):
++        # Add data to the context here...
++        return context
+diff --git a/openstack_dashboard/dashboards/logs/logsview/__init__.py b/openstack_dashboard/dashboards/logs/logsview/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/openstack_dashboard/dashboards/logs/logsview/panel.py b/openstack_dashboard/dashboards/logs/logsview/panel.py
+new file mode 100644
+index 0000000..19c1ccf
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logs/logsview/panel.py
+@@ -0,0 +1,11 @@
++from django.utils.translation import ugettext_lazy as _
++
++import horizon
++from openstack_dashboard.dashboards.logs import dashboard
++
++class Logsview(horizon.Panel):
++    name = _("Logs View")
++    slug = "logsview"
++
++
++dashboard.Logs.register(Logsview)
+diff --git a/openstack_dashboard/dashboards/logs/logsview/tables.py b/openstack_dashboard/dashboards/logs/logsview/tables.py
+new file mode 100644
+index 0000000..69c3615
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logs/logsview/tables.py
+@@ -0,0 +1,15 @@
++from django.utils.translation import ugettext_lazy as _
++
++from horizon import tables
++
++class LogsTable(tables.DataTable):
++   time = tables.Column('time', verbose_name=_("Name"))
++   project = tables.Column('project', verbose_name=_("Project"))
++   level = tables.Column('level', verbose_name=_("Level"))
++   resources = tables.Column('resources', verbose_name=_("Resources"))
++   message = tables.Column('message', verbose_name=_("Message"))
++
++   class Meta:
++      name = "logs"
++      verbose_name = _("Logs")
++      multi_select = True
+diff --git a/openstack_dashboard/dashboards/logs/logsview/templates/logsview/index.html b/openstack_dashboard/dashboards/logs/logsview/templates/logsview/index.html
+new file mode 100644
+index 0000000..a6ac9e6
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logs/logsview/templates/logsview/index.html
+@@ -0,0 +1,109 @@
++{% extends 'base.html' %}
++{% load i18n %}
++{% block title %}{% trans "Logs View" %}{% endblock %}
++
++{% block page_header %}
++<link href="//cdn.rawgit.com/Eonasdan/bootstrap-datetimepicker/e8bddc60e73c1ec2475f827be36e1957af72e2ea/build/css/bootstrap-datetimepicker.css" rel="stylesheet">
++{% include "horizon/common/_page_header.html" with title=_("Logs View") %}
++{% endblock page_header %}
++
++{% block main %}
++<div class="row">
++  <div class="col-sm-12">
++    <div class="row">
++      <form>
++      <div class="col-md-5">
++        <div class="row">
++          <div class="col-md-2 _label"><label style="padding-left: 15px">Project</label></div>
++          <div class="col-md-10"><select class="form-control" id="project">
++            <option>ALL</option>
++            <option>NOVA</option>
++            <option>GLANCE</option>
++            <option>NEUTRON</option>
++            <option>KEYSTONE</option>
++          </select></div>
++        </div>
++        <div class="row">
++          <div class="col-md-2 _label"><label style="padding-left: 15px">Start</label></div>
++          <div class="col-md-10">
++            <div class="form-group">
++              <div class='input-group date' id='datetimepicker1'>
++                <input type='text' class="form-control" />
++                <span class="input-group-addon">
++                  <span class="glyphicon glyphicon-calendar"></span>
++                </span>
++              </div>
++            </div>
++          </div>
++        </div>
++      </div>
++      <div class="col-md-5">
++        <div class="row ">
++          <div class="col-md-2 _label"><label>Level</label></div>
++          <div class="col-md-10"><select class="form-control" id="level">
++            <option>ALL</option>
++            <option>ERROR</option>
++            <option>INFO</option>
++            <option>WARN</option>
++            <option>DEBUG</option>
++          </select></div>
++        </div>
++        <div class="row">
++          <div class="col-md-2 _label"><label style="padding-left: 15px">End</label></div>
++          <div class="col-md-10">
++            <div class="form-group">
++              <div class='input-group date' id='datetimepicker2'>
++                <input type='text' class="form-control" />
++                <span class="input-group-addon">
++                  <span class="glyphicon glyphicon-calendar"></span>
++                </span>
++              </div>
++            </div>
++          </div>
++        </div>
++      </div>
++      </form>
++      <div class="col-md-2">
++        <button class="btn btn-default logs-action-btn" type="submit">
++          <span class="glyphicon glyphicon-filter" aria-hidden="true"></span>
++          Filter
++        </button>
++        <button class="btn btn-default logs-action-btn" type="submit">
++          <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
++          Refresh
++        </button>
++      </div>
++    </div>
++    {{ table.render }}
++  </div>
++</div>
++<style>
++  .row {
++  }
++  .logs-action-btn {
++    margin-bottom: 5px;
++    float: right;
++    width: 90px;
++  }
++  ._label {
++    line-height: 34px;
++    font-size: 10pt;
++    font-weight: normal;
++  }
++</style>
++<script src="//cdnjs.cloudflare.com/ajax/libs/moment.js/2.9.0/moment-with-locales.js"></script>
++<script src="//cdn.rawgit.com/Eonasdan/bootstrap-datetimepicker/e8bddc60e73c1ec2475f827be36e1957af72e2ea/src/js/bootstrap-datetimepicker.js"></script>
++<script src="//eonasdan.github.io/bootstrap-datetimepicker/js/prettify-1.0.min.js"></script>
++<script type="text/javascript" src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
++<script src="//eonasdan.github.io/bootstrap-datetimepicker/js/base.js"></script>
++<script type="text/javascript">
++  $(function () {
++    $('#datetimepicker1').datetimepicker({
++      format: 'D/M/YYYY hh:mm:ss'
++    });
++    $('#datetimepicker2').datetimepicker({
++      format: 'D/M/YYYY hh:mm:ss'
++    });
++  });
++</script>
++{% endblock %}
+diff --git a/openstack_dashboard/dashboards/logs/logsview/tests.py b/openstack_dashboard/dashboards/logs/logsview/tests.py
+new file mode 100644
+index 0000000..51d19d7
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logs/logsview/tests.py
+@@ -0,0 +1,7 @@
++from horizon.test import helpers as test
++
++
++class LogsviewTests(test.TestCase):
++    # Unit tests for logsview.
++    def test_me(self):
++        self.assertTrue(1 + 1 == 2)
+diff --git a/openstack_dashboard/dashboards/logs/logsview/urls.py b/openstack_dashboard/dashboards/logs/logsview/urls.py
+new file mode 100644
+index 0000000..848f5d3
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logs/logsview/urls.py
+@@ -0,0 +1,11 @@
++from django.conf.urls import patterns
++from django.conf.urls import url
++
++from openstack_dashboard.dashboards.logs.logsview.views \
++    import IndexView
++
++
++urlpatterns = patterns(
++    '',
++    url(r'^$', IndexView.as_view(), name='index'),
++)
+diff --git a/openstack_dashboard/dashboards/logs/logsview/views.py b/openstack_dashboard/dashboards/logs/logsview/views.py
+new file mode 100644
+index 0000000..65cdca0
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logs/logsview/views.py
+@@ -0,0 +1,17 @@
++from django.utils.translation import ugettext_lazy as _
++
++from horizon import exceptions
++
++from openstack_dashboard.dashboards.logs.logsview \
++   import tables as logs_table
++
++from horizon import forms
++from horizon import messages
++from horizon import tables
++from horizon.utils import memoized
++from horizon import views
++
++class IndexView(tables.DataTableView):
++   table_class = logs_table.LogsTable
++   template_name = 'logs/logsview/index.html'
++   page_title = _("Logs View")
+diff --git a/openstack_dashboard/dashboards/logs/models.py b/openstack_dashboard/dashboards/logs/models.py
+new file mode 100644
+index 0000000..1b3d5f9
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logs/models.py
+@@ -0,0 +1,3 @@
++"""
++Stub file to work around django bug: https://code.djangoproject.com/ticket/7198
++"""
+diff --git a/openstack_dashboard/dashboards/logs/static/logs/css/bootstrap-colorpicker.css b/openstack_dashboard/dashboards/logs/static/logs/css/bootstrap-colorpicker.css
+new file mode 100644
+index 0000000..432c50f
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logs/static/logs/css/bootstrap-colorpicker.css
+@@ -0,0 +1,251 @@
++/*!
++ * Bootstrap Colorpicker
++ * http://mjolnic.github.io/bootstrap-colorpicker/
++ *
++ * Originally written by (c) 2012 Stefan Petre
++ * Licensed under the Apache License v2.0
++ * http://www.apache.org/licenses/LICENSE-2.0.txt
++ *
++ */
++
++.colorpicker-saturation {
++  float: left;
++  width: 100px;
++  height: 100px;
++  cursor: crosshair;
++  background-image: url("../img/bootstrap-colorpicker/saturation.png");
++}
++
++.colorpicker-saturation i {
++  position: absolute;
++  top: 0;
++  left: 0;
++  display: block;
++  width: 5px;
++  height: 5px;
++  margin: -4px 0 0 -4px;
++  border: 1px solid #000;
++  -webkit-border-radius: 5px;
++     -moz-border-radius: 5px;
++          border-radius: 5px;
++}
++
++.colorpicker-saturation i b {
++  display: block;
++  width: 5px;
++  height: 5px;
++  border: 1px solid #fff;
++  -webkit-border-radius: 5px;
++     -moz-border-radius: 5px;
++          border-radius: 5px;
++}
++
++.colorpicker-hue,
++.colorpicker-alpha {
++  float: left;
++  width: 15px;
++  height: 100px;
++  margin-bottom: 4px;
++  margin-left: 4px;
++  cursor: row-resize;
++}
++
++.colorpicker-hue i,
++.colorpicker-alpha i {
++  position: absolute;
++  top: 0;
++  left: 0;
++  display: block;
++  width: 100%;
++  height: 1px;
++  margin-top: -1px;
++  background: #000;
++  border-top: 1px solid #fff;
++}
++
++.colorpicker-hue {
++  background-image: url("../img/bootstrap-colorpicker/hue.png");
++}
++
++.colorpicker-alpha {
++  display: none;
++  background-image: url("../img/bootstrap-colorpicker/alpha.png");
++}
++
++.colorpicker-saturation,
++.colorpicker-hue,
++.colorpicker-alpha {
++  background-size: contain;
++}
++
++.colorpicker {
++  top: 0;
++  left: 0;
++  z-index: 2500;
++  min-width: 130px;
++  padding: 4px;
++  margin-top: 1px;
++  -webkit-border-radius: 4px;
++     -moz-border-radius: 4px;
++          border-radius: 4px;
++  *zoom: 1;
++}
++
++.colorpicker:before,
++.colorpicker:after {
++  display: table;
++  line-height: 0;
++  content: "";
++}
++
++.colorpicker:after {
++  clear: both;
++}
++
++.colorpicker:before {
++  position: absolute;
++  top: -7px;
++  left: 6px;
++  display: inline-block;
++  border-right: 7px solid transparent;
++  border-bottom: 7px solid #ccc;
++  border-left: 7px solid transparent;
++  border-bottom-color: rgba(0, 0, 0, 0.2);
++  content: '';
++}
++
++.colorpicker:after {
++  position: absolute;
++  top: -6px;
++  left: 7px;
++  display: inline-block;
++  border-right: 6px solid transparent;
++  border-bottom: 6px solid #ffffff;
++  border-left: 6px solid transparent;
++  content: '';
++}
++
++.colorpicker div {
++  position: relative;
++}
++
++.colorpicker.colorpicker-with-alpha {
++  min-width: 140px;
++}
++
++.colorpicker.colorpicker-with-alpha .colorpicker-alpha {
++  display: block;
++}
++
++.colorpicker-color {
++  height: 10px;
++  margin-top: 5px;
++  clear: both;
++  background-image: url("../img/bootstrap-colorpicker/alpha.png");
++  background-position: 0 100%;
++}
++
++.colorpicker-color div {
++  height: 10px;
++}
++
++.colorpicker-selectors {
++  display: none;
++  height: 10px;
++  margin-top: 5px;
++  clear: both;
++}
++
++.colorpicker-selectors i {
++  float: left;
++  width: 10px;
++  height: 10px;
++  cursor: pointer;
++}
++
++.colorpicker-selectors i + i {
++  margin-left: 3px;
++}
++
++.colorpicker-element .input-group-addon i,
++.colorpicker-element .add-on i {
++  display: inline-block;
++  width: 16px;
++  height: 16px;
++  vertical-align: text-top;
++  cursor: pointer;
++}
++
++.colorpicker.colorpicker-inline {
++  position: relative;
++  z-index: auto;
++  display: inline-block;
++  float: none;
++}
++
++.colorpicker.colorpicker-horizontal {
++  width: 110px;
++  height: auto;
++  min-width: 110px;
++}
++
++.colorpicker.colorpicker-horizontal .colorpicker-saturation {
++  margin-bottom: 4px;
++}
++
++.colorpicker.colorpicker-horizontal .colorpicker-color {
++  width: 100px;
++}
++
++.colorpicker.colorpicker-horizontal .colorpicker-hue,
++.colorpicker.colorpicker-horizontal .colorpicker-alpha {
++  float: left;
++  width: 100px;
++  height: 15px;
++  margin-bottom: 4px;
++  margin-left: 0;
++  cursor: col-resize;
++}
++
++.colorpicker.colorpicker-horizontal .colorpicker-hue i,
++.colorpicker.colorpicker-horizontal .colorpicker-alpha i {
++  position: absolute;
++  top: 0;
++  left: 0;
++  display: block;
++  width: 1px;
++  height: 15px;
++  margin-top: 0;
++  background: #ffffff;
++  border: none;
++}
++
++.colorpicker.colorpicker-horizontal .colorpicker-hue {
++  background-image: url("../img/bootstrap-colorpicker/hue-horizontal.png");
++}
++
++.colorpicker.colorpicker-horizontal .colorpicker-alpha {
++  background-image: url("../img/bootstrap-colorpicker/alpha-horizontal.png");
++}
++
++.colorpicker.colorpicker-hidden {
++  display: none;
++}
++
++.colorpicker.colorpicker-visible {
++  display: block;
++}
++
++.colorpicker-inline.colorpicker-visible {
++  display: inline-block;
++}
++
++.colorpicker-right:before {
++  right: 6px;
++  left: auto;
++}
++
++.colorpicker-right:after {
++  right: 7px;
++  left: auto;
++}
+\ No newline at end of file
+diff --git a/openstack_dashboard/dashboards/logs/static/logs/css/bootstrap-colorpicker.min.css b/openstack_dashboard/dashboards/logs/static/logs/css/bootstrap-colorpicker.min.css
+new file mode 100644
+index 0000000..14a9ee9
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logs/static/logs/css/bootstrap-colorpicker.min.css
+@@ -0,0 +1,9 @@
++/*!
++ * Bootstrap Colorpicker
++ * http://mjolnic.github.io/bootstrap-colorpicker/
++ *
++ * Originally written by (c) 2012 Stefan Petre
++ * Licensed under the Apache License v2.0
++ * http://www.apache.org/licenses/LICENSE-2.0.txt
++ *
++ */.colorpicker-saturation{float:left;width:100px;height:100px;cursor:crosshair;background-image:url("../img/bootstrap-colorpicker/saturation.png")}.colorpicker-saturation i{position:absolute;top:0;left:0;display:block;width:5px;height:5px;margin:-4px 0 0 -4px;border:1px solid #000;-webkit-border-radius:5px;-moz-border-radius:5px;border-radius:5px}.colorpicker-saturation i b{display:block;width:5px;height:5px;border:1px solid #fff;-webkit-border-radius:5px;-moz-border-radius:5px;border-radius:5px}.colorpicker-hue,.colorpicker-alpha{float:left;width:15px;height:100px;margin-bottom:4px;margin-left:4px;cursor:row-resize}.colorpicker-hue i,.colorpicker-alpha i{position:absolute;top:0;left:0;display:block;width:100%;height:1px;margin-top:-1px;background:#000;border-top:1px solid #fff}.colorpicker-hue{background-image:url("../img/bootstrap-colorpicker/hue.png")}.colorpicker-alpha{display:none;background-image:url("../img/bootstrap-colorpicker/alpha.png")}.colorpicker-saturation,.colorpicker-hue,.colorpicker-alpha{background-size:contain}.colorpicker{top:0;left:0;z-index:2500;min-width:130px;padding:4px;margin-top:1px;-webkit-border-radius:4px;-moz-border-radius:4px;border-radius:4px;*zoom:1}.colorpicker:before,.colorpicker:after{display:table;line-height:0;content:""}.colorpicker:after{clear:both}.colorpicker:before{position:absolute;top:-7px;left:6px;display:inline-block;border-right:7px solid transparent;border-bottom:7px solid #ccc;border-left:7px solid transparent;border-bottom-color:rgba(0,0,0,0.2);content:''}.colorpicker:after{position:absolute;top:-6px;left:7px;display:inline-block;border-right:6px solid transparent;border-bottom:6px solid #fff;border-left:6px solid transparent;content:''}.colorpicker div{position:relative}.colorpicker.colorpicker-with-alpha{min-width:140px}.colorpicker.colorpicker-with-alpha .colorpicker-alpha{display:block}.colorpicker-color{height:10px;margin-top:5px;clear:both;background-image:url("../img/bootstrap-colorpicker/alpha.png");background-position:0 100%}.colorpicker-color div{height:10px}.colorpicker-selectors{display:none;height:10px;margin-top:5px;clear:both}.colorpicker-selectors i{float:left;width:10px;height:10px;cursor:pointer}.colorpicker-selectors i+i{margin-left:3px}.colorpicker-element .input-group-addon i,.colorpicker-element .add-on i{display:inline-block;width:16px;height:16px;vertical-align:text-top;cursor:pointer}.colorpicker.colorpicker-inline{position:relative;z-index:auto;display:inline-block;float:none}.colorpicker.colorpicker-horizontal{width:110px;height:auto;min-width:110px}.colorpicker.colorpicker-horizontal .colorpicker-saturation{margin-bottom:4px}.colorpicker.colorpicker-horizontal .colorpicker-color{width:100px}.colorpicker.colorpicker-horizontal .colorpicker-hue,.colorpicker.colorpicker-horizontal .colorpicker-alpha{float:left;width:100px;height:15px;margin-bottom:4px;margin-left:0;cursor:col-resize}.colorpicker.colorpicker-horizontal .colorpicker-hue i,.colorpicker.colorpicker-horizontal .colorpicker-alpha i{position:absolute;top:0;left:0;display:block;width:1px;height:15px;margin-top:0;background:#fff;border:0}.colorpicker.colorpicker-horizontal .colorpicker-hue{background-image:url("../img/bootstrap-colorpicker/hue-horizontal.png")}.colorpicker.colorpicker-horizontal .colorpicker-alpha{background-image:url("../img/bootstrap-colorpicker/alpha-horizontal.png")}.colorpicker.colorpicker-hidden{display:none}.colorpicker.colorpicker-visible{display:block}.colorpicker-inline.colorpicker-visible{display:inline-block}.colorpicker-right:before{right:6px;left:auto}.colorpicker-right:after{right:7px;left:auto}
+\ No newline at end of file
+diff --git a/openstack_dashboard/dashboards/logs/static/logs/css/logs.css b/openstack_dashboard/dashboards/logs/static/logs/css/logs.css
+new file mode 100644
+index 0000000..657f211
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logs/static/logs/css/logs.css
+@@ -0,0 +1 @@
++/* Additional CSS for logs. */
+diff --git a/openstack_dashboard/dashboards/logs/static/logs/img/bootstrap-colorpicker/alpha-horizontal.png b/openstack_dashboard/dashboards/logs/static/logs/img/bootstrap-colorpicker/alpha-horizontal.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..d0a65c08b0ed34d969cb0e93165a2e8b0ef9dbd7
+GIT binary patch
+literal 3635
+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
+FV1h0U4od(4
+
+literal 0
+HcmV?d00001
+
+diff --git a/openstack_dashboard/dashboards/logs/static/logs/img/bootstrap-colorpicker/alpha.png b/openstack_dashboard/dashboards/logs/static/logs/img/bootstrap-colorpicker/alpha.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..38043f1c85f20fe8ce37ad380bebe2d42d14fb29
+GIT binary patch
+literal 3271
+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
+FV1iYw9mW6v
+
+literal 0
+HcmV?d00001
+
+diff --git a/openstack_dashboard/dashboards/logs/static/logs/img/bootstrap-colorpicker/hue-horizontal.png b/openstack_dashboard/dashboards/logs/static/logs/img/bootstrap-colorpicker/hue-horizontal.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..a0d9add8e7b12c40e3aef1a095e3ae15ac2e4969
+GIT binary patch
+literal 2837
+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
+
+literal 0
+HcmV?d00001
+
+diff --git a/openstack_dashboard/dashboards/logs/static/logs/img/bootstrap-colorpicker/hue.png b/openstack_dashboard/dashboards/logs/static/logs/img/bootstrap-colorpicker/hue.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..d89560e999f86c349ddc78c298b0328293f13e1e
+GIT binary patch
+literal 2972
+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
+Sf}iF90000<MNUMnLSTZ^%YmT)
+
+literal 0
+HcmV?d00001
+
+diff --git a/openstack_dashboard/dashboards/logs/static/logs/img/bootstrap-colorpicker/saturation.png b/openstack_dashboard/dashboards/logs/static/logs/img/bootstrap-colorpicker/saturation.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..594ae50ed77608cf6373d6b39e5cacb9f63b7bbe
+GIT binary patch
+literal 8817
+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
+
+literal 0
+HcmV?d00001
+
+diff --git a/openstack_dashboard/dashboards/logs/static/logs/js/bootstrap-colorpicker.js b/openstack_dashboard/dashboards/logs/static/logs/js/bootstrap-colorpicker.js
+new file mode 100644
+index 0000000..3e361b9
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logs/static/logs/js/bootstrap-colorpicker.js
+@@ -0,0 +1,1084 @@
++/*!
++ * Bootstrap Colorpicker
++ * http://mjolnic.github.io/bootstrap-colorpicker/
++ *
++ * Originally written by (c) 2012 Stefan Petre
++ * Licensed under the Apache License v2.0
++ * http://www.apache.org/licenses/LICENSE-2.0.txt
++ *
++ * @todo Update DOCS
++ */
++
++(function(factory) {
++    "use strict";
++    if (typeof exports === 'object') {
++      module.exports = factory(window.jQuery);
++    } else if (typeof define === 'function' && define.amd) {
++      define(['jquery'], factory);
++    } else if (window.jQuery && !window.jQuery.fn.colorpicker) {
++      factory(window.jQuery);
++    }
++  }
++  (function($) {
++    'use strict';
++
++    // Color object
++    var Color = function(val, customColors) {
++      this.value = {
++        h: 0,
++        s: 0,
++        b: 0,
++        a: 1
++      };
++      this.origFormat = null; // original string format
++      if (customColors) {
++        $.extend(this.colors, customColors);
++      }
++      if (val) {
++        if (val.toLowerCase !== undefined) {
++          // cast to string
++          val = val + '';
++          this.setColor(val);
++        } else if (val.h !== undefined) {
++          this.value = val;
++        }
++      }
++    };
++
++    Color.prototype = {
++      constructor: Color,
++      // 140 predefined colors from the HTML Colors spec
++      colors: {
++        "aliceblue": "#f0f8ff",
++        "antiquewhite": "#faebd7",
++        "aqua": "#00ffff",
++        "aquamarine": "#7fffd4",
++        "azure": "#f0ffff",
++        "beige": "#f5f5dc",
++        "bisque": "#ffe4c4",
++        "black": "#000000",
++        "blanchedalmond": "#ffebcd",
++        "blue": "#0000ff",
++        "blueviolet": "#8a2be2",
++        "brown": "#a52a2a",
++        "burlywood": "#deb887",
++        "cadetblue": "#5f9ea0",
++        "chartreuse": "#7fff00",
++        "chocolate": "#d2691e",
++        "coral": "#ff7f50",
++        "cornflowerblue": "#6495ed",
++        "cornsilk": "#fff8dc",
++        "crimson": "#dc143c",
++        "cyan": "#00ffff",
++        "darkblue": "#00008b",
++        "darkcyan": "#008b8b",
++        "darkgoldenrod": "#b8860b",
++        "darkgray": "#a9a9a9",
++        "darkgreen": "#006400",
++        "darkkhaki": "#bdb76b",
++        "darkmagenta": "#8b008b",
++        "darkolivegreen": "#556b2f",
++        "darkorange": "#ff8c00",
++        "darkorchid": "#9932cc",
++        "darkred": "#8b0000",
++        "darksalmon": "#e9967a",
++        "darkseagreen": "#8fbc8f",
++        "darkslateblue": "#483d8b",
++        "darkslategray": "#2f4f4f",
++        "darkturquoise": "#00ced1",
++        "darkviolet": "#9400d3",
++        "deeppink": "#ff1493",
++        "deepskyblue": "#00bfff",
++        "dimgray": "#696969",
++        "dodgerblue": "#1e90ff",
++        "firebrick": "#b22222",
++        "floralwhite": "#fffaf0",
++        "forestgreen": "#228b22",
++        "fuchsia": "#ff00ff",
++        "gainsboro": "#dcdcdc",
++        "ghostwhite": "#f8f8ff",
++        "gold": "#ffd700",
++        "goldenrod": "#daa520",
++        "gray": "#808080",
++        "green": "#008000",
++        "greenyellow": "#adff2f",
++        "honeydew": "#f0fff0",
++        "hotpink": "#ff69b4",
++        "indianred": "#cd5c5c",
++        "indigo": "#4b0082",
++        "ivory": "#fffff0",
++        "khaki": "#f0e68c",
++        "lavender": "#e6e6fa",
++        "lavenderblush": "#fff0f5",
++        "lawngreen": "#7cfc00",
++        "lemonchiffon": "#fffacd",
++        "lightblue": "#add8e6",
++        "lightcoral": "#f08080",
++        "lightcyan": "#e0ffff",
++        "lightgoldenrodyellow": "#fafad2",
++        "lightgrey": "#d3d3d3",
++        "lightgreen": "#90ee90",
++        "lightpink": "#ffb6c1",
++        "lightsalmon": "#ffa07a",
++        "lightseagreen": "#20b2aa",
++        "lightskyblue": "#87cefa",
++        "lightslategray": "#778899",
++        "lightsteelblue": "#b0c4de",
++        "lightyellow": "#ffffe0",
++        "lime": "#00ff00",
++        "limegreen": "#32cd32",
++        "linen": "#faf0e6",
++        "magenta": "#ff00ff",
++        "maroon": "#800000",
++        "mediumaquamarine": "#66cdaa",
++        "mediumblue": "#0000cd",
++        "mediumorchid": "#ba55d3",
++        "mediumpurple": "#9370d8",
++        "mediumseagreen": "#3cb371",
++        "mediumslateblue": "#7b68ee",
++        "mediumspringgreen": "#00fa9a",
++        "mediumturquoise": "#48d1cc",
++        "mediumvioletred": "#c71585",
++        "midnightblue": "#191970",
++        "mintcream": "#f5fffa",
++        "mistyrose": "#ffe4e1",
++        "moccasin": "#ffe4b5",
++        "navajowhite": "#ffdead",
++        "navy": "#000080",
++        "oldlace": "#fdf5e6",
++        "olive": "#808000",
++        "olivedrab": "#6b8e23",
++        "orange": "#ffa500",
++        "orangered": "#ff4500",
++        "orchid": "#da70d6",
++        "palegoldenrod": "#eee8aa",
++        "palegreen": "#98fb98",
++        "paleturquoise": "#afeeee",
++        "palevioletred": "#d87093",
++        "papayawhip": "#ffefd5",
++        "peachpuff": "#ffdab9",
++        "peru": "#cd853f",
++        "pink": "#ffc0cb",
++        "plum": "#dda0dd",
++        "powderblue": "#b0e0e6",
++        "purple": "#800080",
++        "red": "#ff0000",
++        "rosybrown": "#bc8f8f",
++        "royalblue": "#4169e1",
++        "saddlebrown": "#8b4513",
++        "salmon": "#fa8072",
++        "sandybrown": "#f4a460",
++        "seagreen": "#2e8b57",
++        "seashell": "#fff5ee",
++        "sienna": "#a0522d",
++        "silver": "#c0c0c0",
++        "skyblue": "#87ceeb",
++        "slateblue": "#6a5acd",
++        "slategray": "#708090",
++        "snow": "#fffafa",
++        "springgreen": "#00ff7f",
++        "steelblue": "#4682b4",
++        "tan": "#d2b48c",
++        "teal": "#008080",
++        "thistle": "#d8bfd8",
++        "tomato": "#ff6347",
++        "turquoise": "#40e0d0",
++        "violet": "#ee82ee",
++        "wheat": "#f5deb3",
++        "white": "#ffffff",
++        "whitesmoke": "#f5f5f5",
++        "yellow": "#ffff00",
++        "yellowgreen": "#9acd32",
++        "transparent": "transparent"
++      },
++      _sanitizeNumber: function(val) {
++        if (typeof val === 'number') {
++          return val;
++        }
++        if (isNaN(val) || (val === null) || (val === '') || (val === undefined)) {
++          return 1;
++        }
++        if (val.toLowerCase !== undefined) {
++          return parseFloat(val);
++        }
++        return 1;
++      },
++      isTransparent: function(strVal) {
++        if (!strVal) {
++          return false;
++        }
++        strVal = strVal.toLowerCase().trim();
++        return (strVal === 'transparent') || (strVal.match(/#?00000000/)) || (strVal.match(/(rgba|hsla)\(0,0,0,0?\.?0\)/));
++      },
++      rgbaIsTransparent: function(rgba) {
++        return ((rgba.r === 0) && (rgba.g === 0) && (rgba.b === 0) && (rgba.a === 0));
++      },
++      //parse a string to HSB
++      setColor: function(strVal) {
++        strVal = strVal.toLowerCase().trim();
++        if (strVal) {
++          if (this.isTransparent(strVal)) {
++            this.value = {
++              h: 0,
++              s: 0,
++              b: 0,
++              a: 0
++            };
++          } else {
++            this.value = this.stringToHSB(strVal) || {
++              h: 0,
++              s: 0,
++              b: 0,
++              a: 1
++            }; // if parser fails, defaults to black
++          }
++        }
++      },
++      stringToHSB: function(strVal) {
++        strVal = strVal.toLowerCase();
++        var alias;
++        if (typeof this.colors[strVal] !== 'undefined') {
++          strVal = this.colors[strVal];
++          alias = 'alias';
++        }
++        var that = this,
++          result = false;
++        $.each(this.stringParsers, function(i, parser) {
++          var match = parser.re.exec(strVal),
++            values = match && parser.parse.apply(that, [match]),
++            format = alias || parser.format || 'rgba';
++          if (values) {
++            if (format.match(/hsla?/)) {
++              result = that.RGBtoHSB.apply(that, that.HSLtoRGB.apply(that, values));
++            } else {
++              result = that.RGBtoHSB.apply(that, values);
++            }
++            that.origFormat = format;
++            return false;
++          }
++          return true;
++        });
++        return result;
++      },
++      setHue: function(h) {
++        this.value.h = 1 - h;
++      },
++      setSaturation: function(s) {
++        this.value.s = s;
++      },
++      setBrightness: function(b) {
++        this.value.b = 1 - b;
++      },
++      setAlpha: function(a) {
++        this.value.a = parseInt((1 - a) * 100, 10) / 100;
++      },
++      toRGB: function(h, s, b, a) {
++        if (!h) {
++          h = this.value.h;
++          s = this.value.s;
++          b = this.value.b;
++        }
++        h *= 360;
++        var R, G, B, X, C;
++        h = (h % 360) / 60;
++        C = b * s;
++        X = C * (1 - Math.abs(h % 2 - 1));
++        R = G = B = b - C;
++
++        h = ~~h;
++        R += [C, X, 0, 0, X, C][h];
++        G += [X, C, C, X, 0, 0][h];
++        B += [0, 0, X, C, C, X][h];
++        return {
++          r: Math.round(R * 255),
++          g: Math.round(G * 255),
++          b: Math.round(B * 255),
++          a: a || this.value.a
++        };
++      },
++      toHex: function(h, s, b, a) {
++        var rgb = this.toRGB(h, s, b, a);
++        if (this.rgbaIsTransparent(rgb)) {
++          return 'transparent';
++        }
++        return '#' + ((1 << 24) | (parseInt(rgb.r) << 16) | (parseInt(rgb.g) << 8) | parseInt(rgb.b)).toString(16).substr(1);
++      },
++      toHSL: function(h, s, b, a) {
++        h = h || this.value.h;
++        s = s || this.value.s;
++        b = b || this.value.b;
++        a = a || this.value.a;
++
++        var H = h,
++          L = (2 - s) * b,
++          S = s * b;
++        if (L > 0 && L <= 1) {
++          S /= L;
++        } else {
++          S /= 2 - L;
++        }
++        L /= 2;
++        if (S > 1) {
++          S = 1;
++        }
++        return {
++          h: isNaN(H) ? 0 : H,
++          s: isNaN(S) ? 0 : S,
++          l: isNaN(L) ? 0 : L,
++          a: isNaN(a) ? 0 : a
++        };
++      },
++      toAlias: function(r, g, b, a) {
++        var rgb = this.toHex(r, g, b, a);
++        for (var alias in this.colors) {
++          if (this.colors[alias] === rgb) {
++            return alias;
++          }
++        }
++        return false;
++      },
++      RGBtoHSB: function(r, g, b, a) {
++        r /= 255;
++        g /= 255;
++        b /= 255;
++
++        var H, S, V, C;
++        V = Math.max(r, g, b);
++        C = V - Math.min(r, g, b);
++        H = (C === 0 ? null :
++          V === r ? (g - b) / C :
++          V === g ? (b - r) / C + 2 :
++          (r - g) / C + 4
++        );
++        H = ((H + 360) % 6) * 60 / 360;
++        S = C === 0 ? 0 : C / V;
++        return {
++          h: this._sanitizeNumber(H),
++          s: S,
++          b: V,
++          a: this._sanitizeNumber(a)
++        };
++      },
++      HueToRGB: function(p, q, h) {
++        if (h < 0) {
++          h += 1;
++        } else if (h > 1) {
++          h -= 1;
++        }
++        if ((h * 6) < 1) {
++          return p + (q - p) * h * 6;
++        } else if ((h * 2) < 1) {
++          return q;
++        } else if ((h * 3) < 2) {
++          return p + (q - p) * ((2 / 3) - h) * 6;
++        } else {
++          return p;
++        }
++      },
++      HSLtoRGB: function(h, s, l, a) {
++        if (s < 0) {
++          s = 0;
++        }
++        var q;
++        if (l <= 0.5) {
++          q = l * (1 + s);
++        } else {
++          q = l + s - (l * s);
++        }
++
++        var p = 2 * l - q;
++
++        var tr = h + (1 / 3);
++        var tg = h;
++        var tb = h - (1 / 3);
++
++        var r = Math.round(this.HueToRGB(p, q, tr) * 255);
++        var g = Math.round(this.HueToRGB(p, q, tg) * 255);
++        var b = Math.round(this.HueToRGB(p, q, tb) * 255);
++        return [r, g, b, this._sanitizeNumber(a)];
++      },
++      toString: function(format) {
++        format = format || 'rgba';
++        var c = false;
++        switch (format) {
++          case 'rgb':
++            {
++              c = this.toRGB();
++              if (this.rgbaIsTransparent(c)) {
++                return 'transparent';
++              }
++              return 'rgb(' + c.r + ',' + c.g + ',' + c.b + ')';
++            }
++            break;
++          case 'rgba':
++            {
++              c = this.toRGB();
++              return 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',' + c.a + ')';
++            }
++            break;
++          case 'hsl':
++            {
++              c = this.toHSL();
++              return 'hsl(' + Math.round(c.h * 360) + ',' + Math.round(c.s * 100) + '%,' + Math.round(c.l * 100) + '%)';
++            }
++            break;
++          case 'hsla':
++            {
++              c = this.toHSL();
++              return 'hsla(' + Math.round(c.h * 360) + ',' + Math.round(c.s * 100) + '%,' + Math.round(c.l * 100) + '%,' + c.a + ')';
++            }
++            break;
++          case 'hex':
++            {
++              return this.toHex();
++            }
++            break;
++          case 'alias':
++            return this.toAlias() || this.toHex();
++          default:
++            {
++              return c;
++            }
++            break;
++        }
++      },
++      // a set of RE's that can match strings and generate color tuples.
++      // from John Resig color plugin
++      // https://github.com/jquery/jquery-color/
++      stringParsers: [{
++        re: /rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*?\)/,
++        format: 'rgb',
++        parse: function(execResult) {
++          return [
++            execResult[1],
++            execResult[2],
++            execResult[3],
++            1
++          ];
++        }
++      }, {
++        re: /rgb\(\s*(\d+(?:\.\d+)?)\%\s*,\s*(\d+(?:\.\d+)?)\%\s*,\s*(\d+(?:\.\d+)?)\%\s*?\)/,
++        format: 'rgb',
++        parse: function(execResult) {
++          return [
++            2.55 * execResult[1],
++            2.55 * execResult[2],
++            2.55 * execResult[3],
++            1
++          ];
++        }
++      }, {
++        re: /rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*(\d+(?:\.\d+)?)\s*)?\)/,
++        format: 'rgba',
++        parse: function(execResult) {
++          return [
++            execResult[1],
++            execResult[2],
++            execResult[3],
++            execResult[4]
++          ];
++        }
++      }, {
++        re: /rgba\(\s*(\d+(?:\.\d+)?)\%\s*,\s*(\d+(?:\.\d+)?)\%\s*,\s*(\d+(?:\.\d+)?)\%\s*(?:,\s*(\d+(?:\.\d+)?)\s*)?\)/,
++        format: 'rgba',
++        parse: function(execResult) {
++          return [
++            2.55 * execResult[1],
++            2.55 * execResult[2],
++            2.55 * execResult[3],
++            execResult[4]
++          ];
++        }
++      }, {
++        re: /hsl\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\%\s*,\s*(\d+(?:\.\d+)?)\%\s*?\)/,
++        format: 'hsl',
++        parse: function(execResult) {
++          return [
++            execResult[1] / 360,
++            execResult[2] / 100,
++            execResult[3] / 100,
++            execResult[4]
++          ];
++        }
++      }, {
++        re: /hsla\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\%\s*,\s*(\d+(?:\.\d+)?)\%\s*(?:,\s*(\d+(?:\.\d+)?)\s*)?\)/,
++        format: 'hsla',
++        parse: function(execResult) {
++          return [
++            execResult[1] / 360,
++            execResult[2] / 100,
++            execResult[3] / 100,
++            execResult[4]
++          ];
++        }
++      }, {
++        re: /#?([a-fA-F0-9]{2})([a-fA-F0-9]{2})([a-fA-F0-9]{2})/,
++        format: 'hex',
++        parse: function(execResult) {
++          return [
++            parseInt(execResult[1], 16),
++            parseInt(execResult[2], 16),
++            parseInt(execResult[3], 16),
++            1
++          ];
++        }
++      }, {
++        re: /#?([a-fA-F0-9])([a-fA-F0-9])([a-fA-F0-9])/,
++        format: 'hex',
++        parse: function(execResult) {
++          return [
++            parseInt(execResult[1] + execResult[1], 16),
++            parseInt(execResult[2] + execResult[2], 16),
++            parseInt(execResult[3] + execResult[3], 16),
++            1
++          ];
++        }
++      }],
++      colorNameToHex: function(name) {
++        if (typeof this.colors[name.toLowerCase()] !== 'undefined') {
++          return this.colors[name.toLowerCase()];
++        }
++        return false;
++      }
++    };
++
++
++    var defaults = {
++      horizontal: false, // horizontal mode layout ?
++      inline: false, //forces to show the colorpicker as an inline element
++      color: false, //forces a color
++      format: false, //forces a format
++      input: 'input', // children input selector
++      container: false, // container selector
++      component: '.add-on, .input-group-addon', // children component selector
++      sliders: {
++        saturation: {
++          maxLeft: 100,
++          maxTop: 100,
++          callLeft: 'setSaturation',
++          callTop: 'setBrightness'
++        },
++        hue: {
++          maxLeft: 0,
++          maxTop: 100,
++          callLeft: false,
++          callTop: 'setHue'
++        },
++        alpha: {
++          maxLeft: 0,
++          maxTop: 100,
++          callLeft: false,
++          callTop: 'setAlpha'
++        }
++      },
++      slidersHorz: {
++        saturation: {
++          maxLeft: 100,
++          maxTop: 100,
++          callLeft: 'setSaturation',
++          callTop: 'setBrightness'
++        },
++        hue: {
++          maxLeft: 100,
++          maxTop: 0,
++          callLeft: 'setHue',
++          callTop: false
++        },
++        alpha: {
++          maxLeft: 100,
++          maxTop: 0,
++          callLeft: 'setAlpha',
++          callTop: false
++        }
++      },
++      template: '<div class="colorpicker dropdown-menu">' +
++        '<div class="colorpicker-saturation"><i><b></b></i></div>' +
++        '<div class="colorpicker-hue"><i></i></div>' +
++        '<div class="colorpicker-alpha"><i></i></div>' +
++        '<div class="colorpicker-color"><div /></div>' +
++        '<div class="colorpicker-selectors"></div>' +
++        '</div>',
++      align: 'right',
++      customClass: null,
++      colorSelectors: null
++    };
++
++    var Colorpicker = function(element, options) {
++      this.element = $(element).addClass('colorpicker-element');
++      this.options = $.extend(true, {}, defaults, this.element.data(), options);
++      this.component = this.options.component;
++      this.component = (this.component !== false) ? this.element.find(this.component) : false;
++      if (this.component && (this.component.length === 0)) {
++        this.component = false;
++      }
++      this.container = (this.options.container === true) ? this.element : this.options.container;
++      this.container = (this.container !== false) ? $(this.container) : false;
++
++      // Is the element an input? Should we search inside for any input?
++      this.input = this.element.is('input') ? this.element : (this.options.input ?
++        this.element.find(this.options.input) : false);
++      if (this.input && (this.input.length === 0)) {
++        this.input = false;
++      }
++      // Set HSB color
++      this.color = new Color(this.options.color !== false ? this.options.color : this.getValue(), this.options.colorSelectors);
++      this.format = this.options.format !== false ? this.options.format : this.color.origFormat;
++
++      if (this.options.color !== false) {
++        this.updateInput(this.color);
++        this.updateData(this.color);
++      }
++
++      // Setup picker
++      this.picker = $(this.options.template);
++      if (this.options.customClass) {
++        this.picker.addClass(this.options.customClass);
++      }
++      if (this.options.inline) {
++        this.picker.addClass('colorpicker-inline colorpicker-visible');
++      } else {
++        this.picker.addClass('colorpicker-hidden');
++      }
++      if (this.options.horizontal) {
++        this.picker.addClass('colorpicker-horizontal');
++      }
++      if (this.format === 'rgba' || this.format === 'hsla' || this.options.format === false) {
++        this.picker.addClass('colorpicker-with-alpha');
++      }
++      if (this.options.align === 'right') {
++        this.picker.addClass('colorpicker-right');
++      }
++      if (this.options.colorSelectors) {
++        var colorpicker = this;
++        $.each(this.options.colorSelectors, function(name, color) {
++          var $btn = $('<i />').css('background-color', color).data('class', name);
++          $btn.click(function() {
++            colorpicker.setValue($(this).css('background-color'));
++          });
++          colorpicker.picker.find('.colorpicker-selectors').append($btn);
++        });
++        this.picker.find('.colorpicker-selectors').show();
++      }
++      this.picker.on('mousedown.colorpicker touchstart.colorpicker', $.proxy(this.mousedown, this));
++      this.picker.appendTo(this.container ? this.container : $('body'));
++
++      // Bind events
++      if (this.input !== false) {
++        this.input.on({
++          'keyup.colorpicker': $.proxy(this.keyup, this)
++        });
++        this.input.on({
++          'change.colorpicker': $.proxy(this.change, this)
++        });
++        if (this.component === false) {
++          this.element.on({
++            'focus.colorpicker': $.proxy(this.show, this)
++          });
++        }
++        if (this.options.inline === false) {
++          this.element.on({
++            'focusout.colorpicker': $.proxy(this.hide, this)
++          });
++        }
++      }
++
++      if (this.component !== false) {
++        this.component.on({
++          'click.colorpicker': $.proxy(this.show, this)
++        });
++      }
++
++      if ((this.input === false) && (this.component === false)) {
++        this.element.on({
++          'click.colorpicker': $.proxy(this.show, this)
++        });
++      }
++
++      // for HTML5 input[type='color']
++      if ((this.input !== false) && (this.component !== false) && (this.input.attr('type') === 'color')) {
++
++        this.input.on({
++          'click.colorpicker': $.proxy(this.show, this),
++          'focus.colorpicker': $.proxy(this.show, this)
++        });
++      }
++      this.update();
++
++      $($.proxy(function() {
++        this.element.trigger('create');
++      }, this));
++    };
++
++    Colorpicker.Color = Color;
++
++    Colorpicker.prototype = {
++      constructor: Colorpicker,
++      destroy: function() {
++        this.picker.remove();
++        this.element.removeData('colorpicker').off('.colorpicker');
++        if (this.input !== false) {
++          this.input.off('.colorpicker');
++        }
++        if (this.component !== false) {
++          this.component.off('.colorpicker');
++        }
++        this.element.removeClass('colorpicker-element');
++        this.element.trigger({
++          type: 'destroy'
++        });
++      },
++      reposition: function() {
++        if (this.options.inline !== false || this.options.container) {
++          return false;
++        }
++        var type = this.container && this.container[0] !== document.body ? 'position' : 'offset';
++        var element = this.component || this.element;
++        var offset = element[type]();
++        if (this.options.align === 'right') {
++          offset.left -= this.picker.outerWidth() - element.outerWidth();
++        }
++        this.picker.css({
++          top: offset.top + element.outerHeight(),
++          left: offset.left
++        });
++      },
++      show: function(e) {
++        if (this.isDisabled()) {
++          return false;
++        }
++        this.picker.addClass('colorpicker-visible').removeClass('colorpicker-hidden');
++        this.reposition();
++        $(window).on('resize.colorpicker', $.proxy(this.reposition, this));
++        if (e && (!this.hasInput() || this.input.attr('type') === 'color')) {
++          if (e.stopPropagation && e.preventDefault) {
++            e.stopPropagation();
++            e.preventDefault();
++          }
++        }
++        if (this.options.inline === false) {
++          $(window.document).on({
++            'mousedown.colorpicker': $.proxy(this.hide, this)
++          });
++        }
++        this.element.trigger({
++          type: 'showPicker',
++          color: this.color
++        });
++      },
++      hide: function() {
++        this.picker.addClass('colorpicker-hidden').removeClass('colorpicker-visible');
++        $(window).off('resize.colorpicker', this.reposition);
++        $(document).off({
++          'mousedown.colorpicker': this.hide
++        });
++        this.update();
++        this.element.trigger({
++          type: 'hidePicker',
++          color: this.color
++        });
++      },
++      updateData: function(val) {
++        val = val || this.color.toString(this.format);
++        this.element.data('color', val);
++        return val;
++      },
++      updateInput: function(val) {
++        val = val || this.color.toString(this.format);
++        if (this.input !== false) {
++          if (this.options.colorSelectors) {
++            var color = new Color(val, this.options.colorSelectors);
++            var alias = color.toAlias();
++            if (typeof this.options.colorSelectors[alias] !== 'undefined') {
++              val = alias;
++            }
++          }
++          this.input.prop('value', val);
++        }
++        return val;
++      },
++      updatePicker: function(val) {
++        if (val !== undefined) {
++          this.color = new Color(val, this.options.colorSelectors);
++        }
++        var sl = (this.options.horizontal === false) ? this.options.sliders : this.options.slidersHorz;
++        var icns = this.picker.find('i');
++        if (icns.length === 0) {
++          return;
++        }
++        if (this.options.horizontal === false) {
++          sl = this.options.sliders;
++          icns.eq(1).css('top', sl.hue.maxTop * (1 - this.color.value.h)).end()
++            .eq(2).css('top', sl.alpha.maxTop * (1 - this.color.value.a));
++        } else {
++          sl = this.options.slidersHorz;
++          icns.eq(1).css('left', sl.hue.maxLeft * (1 - this.color.value.h)).end()
++            .eq(2).css('left', sl.alpha.maxLeft * (1 - this.color.value.a));
++        }
++        icns.eq(0).css({
++          'top': sl.saturation.maxTop - this.color.value.b * sl.saturation.maxTop,
++          'left': this.color.value.s * sl.saturation.maxLeft
++        });
++        this.picker.find('.colorpicker-saturation').css('backgroundColor', this.color.toHex(this.color.value.h, 1, 1, 1));
++        this.picker.find('.colorpicker-alpha').css('backgroundColor', this.color.toHex());
++        this.picker.find('.colorpicker-color, .colorpicker-color div').css('backgroundColor', this.color.toString(this.format));
++        return val;
++      },
++      updateComponent: function(val) {
++        val = val || this.color.toString(this.format);
++        if (this.component !== false) {
++          var icn = this.component.find('i').eq(0);
++          if (icn.length > 0) {
++            icn.css({
++              'backgroundColor': val
++            });
++          } else {
++            this.component.css({
++              'backgroundColor': val
++            });
++          }
++        }
++        return val;
++      },
++      update: function(force) {
++        var val;
++        if ((this.getValue(false) !== false) || (force === true)) {
++          // Update input/data only if the current value is not empty
++          val = this.updateComponent();
++          this.updateInput(val);
++          this.updateData(val);
++          this.updatePicker(); // only update picker if value is not empty
++        }
++        return val;
++
++      },
++      setValue: function(val) { // set color manually
++        this.color = new Color(val, this.options.colorSelectors);
++        this.update(true);
++        this.element.trigger({
++          type: 'changeColor',
++          color: this.color,
++          value: val
++        });
++      },
++      getValue: function(defaultValue) {
++        defaultValue = (defaultValue === undefined) ? '#000000' : defaultValue;
++        var val;
++        if (this.hasInput()) {
++          val = this.input.val();
++        } else {
++          val = this.element.data('color');
++        }
++        if ((val === undefined) || (val === '') || (val === null)) {
++          // if not defined or empty, return default
++          val = defaultValue;
++        }
++        return val;
++      },
++      hasInput: function() {
++        return (this.input !== false);
++      },
++      isDisabled: function() {
++        if (this.hasInput()) {
++          return (this.input.prop('disabled') === true);
++        }
++        return false;
++      },
++      disable: function() {
++        if (this.hasInput()) {
++          this.input.prop('disabled', true);
++          this.element.trigger({
++            type: 'disable',
++            color: this.color,
++            value: this.getValue()
++          });
++          return true;
++        }
++        return false;
++      },
++      enable: function() {
++        if (this.hasInput()) {
++          this.input.prop('disabled', false);
++          this.element.trigger({
++            type: 'enable',
++            color: this.color,
++            value: this.getValue()
++          });
++          return true;
++        }
++        return false;
++      },
++      currentSlider: null,
++      mousePointer: {
++        left: 0,
++        top: 0
++      },
++      mousedown: function(e) {
++        if (!e.pageX && !e.pageY && e.originalEvent) {
++          e.pageX = e.originalEvent.touches[0].pageX;
++          e.pageY = e.originalEvent.touches[0].pageY;
++        }
++        e.stopPropagation();
++        e.preventDefault();
++
++        var target = $(e.target);
++
++        //detect the slider and set the limits and callbacks
++        var zone = target.closest('div');
++        var sl = this.options.horizontal ? this.options.slidersHorz : this.options.sliders;
++        if (!zone.is('.colorpicker')) {
++          if (zone.is('.colorpicker-saturation')) {
++            this.currentSlider = $.extend({}, sl.saturation);
++          } else if (zone.is('.colorpicker-hue')) {
++            this.currentSlider = $.extend({}, sl.hue);
++          } else if (zone.is('.colorpicker-alpha')) {
++            this.currentSlider = $.extend({}, sl.alpha);
++          } else {
++            return false;
++          }
++          var offset = zone.offset();
++          //reference to guide's style
++          this.currentSlider.guide = zone.find('i')[0].style;
++          this.currentSlider.left = e.pageX - offset.left;
++          this.currentSlider.top = e.pageY - offset.top;
++          this.mousePointer = {
++            left: e.pageX,
++            top: e.pageY
++          };
++          //trigger mousemove to move the guide to the current position
++          $(document).on({
++            'mousemove.colorpicker': $.proxy(this.mousemove, this),
++            'touchmove.colorpicker': $.proxy(this.mousemove, this),
++            'mouseup.colorpicker': $.proxy(this.mouseup, this),
++            'touchend.colorpicker': $.proxy(this.mouseup, this)
++          }).trigger('mousemove');
++        }
++        return false;
++      },
++      mousemove: function(e) {
++        if (!e.pageX && !e.pageY && e.originalEvent) {
++          e.pageX = e.originalEvent.touches[0].pageX;
++          e.pageY = e.originalEvent.touches[0].pageY;
++        }
++        e.stopPropagation();
++        e.preventDefault();
++        var left = Math.max(
++          0,
++          Math.min(
++            this.currentSlider.maxLeft,
++            this.currentSlider.left + ((e.pageX || this.mousePointer.left) - this.mousePointer.left)
++          )
++        );
++        var top = Math.max(
++          0,
++          Math.min(
++            this.currentSlider.maxTop,
++            this.currentSlider.top + ((e.pageY || this.mousePointer.top) - this.mousePointer.top)
++          )
++        );
++        this.currentSlider.guide.left = left + 'px';
++        this.currentSlider.guide.top = top + 'px';
++        if (this.currentSlider.callLeft) {
++          this.color[this.currentSlider.callLeft].call(this.color, left / this.currentSlider.maxLeft);
++        }
++        if (this.currentSlider.callTop) {
++          this.color[this.currentSlider.callTop].call(this.color, top / this.currentSlider.maxTop);
++        }
++        // Change format dynamically
++        // Only occurs if user choose the dynamic format by
++        // setting option format to false
++        if (this.currentSlider.callTop === 'setAlpha' && this.options.format === false) {
++
++          // Converting from hex / rgb to rgba
++          if (this.color.value.a !== 1) {
++            this.format = 'rgba';
++            this.color.origFormat = 'rgba';
++          }
++
++          // Converting from rgba to hex
++          else {
++            this.format = 'hex';
++            this.color.origFormat = 'hex';
++          }
++        }
++        this.update(true);
++
++        this.element.trigger({
++          type: 'changeColor',
++          color: this.color
++        });
++        return false;
++      },
++      mouseup: function(e) {
++        e.stopPropagation();
++        e.preventDefault();
++        $(document).off({
++          'mousemove.colorpicker': this.mousemove,
++          'touchmove.colorpicker': this.mousemove,
++          'mouseup.colorpicker': this.mouseup,
++          'touchend.colorpicker': this.mouseup
++        });
++        return false;
++      },
++      change: function(e) {
++        this.keyup(e);
++      },
++      keyup: function(e) {
++        if ((e.keyCode === 38)) {
++          if (this.color.value.a < 1) {
++            this.color.value.a = Math.round((this.color.value.a + 0.01) * 100) / 100;
++          }
++          this.update(true);
++        } else if ((e.keyCode === 40)) {
++          if (this.color.value.a > 0) {
++            this.color.value.a = Math.round((this.color.value.a - 0.01) * 100) / 100;
++          }
++          this.update(true);
++        } else {
++          this.color = new Color(this.input.val(), this.options.colorSelectors);
++          // Change format dynamically
++          // Only occurs if user choose the dynamic format by
++          // setting option format to false
++          if (this.color.origFormat && this.options.format === false) {
++            this.format = this.color.origFormat;
++          }
++          if (this.getValue(false) !== false) {
++            this.updateData();
++            this.updateComponent();
++            this.updatePicker();
++          }
++        }
++        this.element.trigger({
++          type: 'changeColor',
++          color: this.color,
++          value: this.input.val()
++        });
++      }
++    };
++
++    $.colorpicker = Colorpicker;
++
++    $.fn.colorpicker = function(option) {
++      var pickerArgs = arguments,
++        rv;
++
++      var $returnValue = this.each(function() {
++        var $this = $(this),
++          inst = $this.data('colorpicker'),
++          options = ((typeof option === 'object') ? option : {});
++        if ((!inst) && (typeof option !== 'string')) {
++          $this.data('colorpicker', new Colorpicker(this, options));
++        } else {
++          if (typeof option === 'string') {
++            rv = inst[option].apply(inst, Array.prototype.slice.call(pickerArgs, 1));
++          }
++        }
++      });
++      if (option === 'getValue') {
++        return rv;
++      }
++      return $returnValue;
++    };
++
++    $.fn.colorpicker.constructor = Colorpicker;
++
++  }));
+diff --git a/openstack_dashboard/dashboards/logs/static/logs/js/bootstrap-colorpicker.min.js b/openstack_dashboard/dashboards/logs/static/logs/js/bootstrap-colorpicker.min.js
+new file mode 100644
+index 0000000..a41a384
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logs/static/logs/js/bootstrap-colorpicker.min.js
+@@ -0,0 +1 @@
++!function(a){"use strict";"object"==typeof exports?module.exports=a(window.jQuery):"function"==typeof define&&define.amd?define(["jquery"],a):window.jQuery&&!window.jQuery.fn.colorpicker&&a(window.jQuery)}(function(a){"use strict";var b=function(b,c){this.value={h:0,s:0,b:0,a:1},this.origFormat=null,c&&a.extend(this.colors,c),b&&(void 0!==b.toLowerCase?(b+="",this.setColor(b)):void 0!==b.h&&(this.value=b))};b.prototype={constructor:b,colors:{aliceblue:"#f0f8ff",antiquewhite:"#faebd7",aqua:"#00ffff",aquamarine:"#7fffd4",azure:"#f0ffff",beige:"#f5f5dc",bisque:"#ffe4c4",black:"#000000",blanchedalmond:"#ffebcd",blue:"#0000ff",blueviolet:"#8a2be2",brown:"#a52a2a",burlywood:"#deb887",cadetblue:"#5f9ea0",chartreuse:"#7fff00",chocolate:"#d2691e",coral:"#ff7f50",cornflowerblue:"#6495ed",cornsilk:"#fff8dc",crimson:"#dc143c",cyan:"#00ffff",darkblue:"#00008b",darkcyan:"#008b8b",darkgoldenrod:"#b8860b",darkgray:"#a9a9a9",darkgreen:"#006400",darkkhaki:"#bdb76b",darkmagenta:"#8b008b",darkolivegreen:"#556b2f",darkorange:"#ff8c00",darkorchid:"#9932cc",darkred:"#8b0000",darksalmon:"#e9967a",darkseagreen:"#8fbc8f",darkslateblue:"#483d8b",darkslategray:"#2f4f4f",darkturquoise:"#00ced1",darkviolet:"#9400d3",deeppink:"#ff1493",deepskyblue:"#00bfff",dimgray:"#696969",dodgerblue:"#1e90ff",firebrick:"#b22222",floralwhite:"#fffaf0",forestgreen:"#228b22",fuchsia:"#ff00ff",gainsboro:"#dcdcdc",ghostwhite:"#f8f8ff",gold:"#ffd700",goldenrod:"#daa520",gray:"#808080",green:"#008000",greenyellow:"#adff2f",honeydew:"#f0fff0",hotpink:"#ff69b4",indianred:"#cd5c5c",indigo:"#4b0082",ivory:"#fffff0",khaki:"#f0e68c",lavender:"#e6e6fa",lavenderblush:"#fff0f5",lawngreen:"#7cfc00",lemonchiffon:"#fffacd",lightblue:"#add8e6",lightcoral:"#f08080",lightcyan:"#e0ffff",lightgoldenrodyellow:"#fafad2",lightgrey:"#d3d3d3",lightgreen:"#90ee90",lightpink:"#ffb6c1",lightsalmon:"#ffa07a",lightseagreen:"#20b2aa",lightskyblue:"#87cefa",lightslategray:"#778899",lightsteelblue:"#b0c4de",lightyellow:"#ffffe0",lime:"#00ff00",limegreen:"#32cd32",linen:"#faf0e6",magenta:"#ff00ff",maroon:"#800000",mediumaquamarine:"#66cdaa",mediumblue:"#0000cd",mediumorchid:"#ba55d3",mediumpurple:"#9370d8",mediumseagreen:"#3cb371",mediumslateblue:"#7b68ee",mediumspringgreen:"#00fa9a",mediumturquoise:"#48d1cc",mediumvioletred:"#c71585",midnightblue:"#191970",mintcream:"#f5fffa",mistyrose:"#ffe4e1",moccasin:"#ffe4b5",navajowhite:"#ffdead",navy:"#000080",oldlace:"#fdf5e6",olive:"#808000",olivedrab:"#6b8e23",orange:"#ffa500",orangered:"#ff4500",orchid:"#da70d6",palegoldenrod:"#eee8aa",palegreen:"#98fb98",paleturquoise:"#afeeee",palevioletred:"#d87093",papayawhip:"#ffefd5",peachpuff:"#ffdab9",peru:"#cd853f",pink:"#ffc0cb",plum:"#dda0dd",powderblue:"#b0e0e6",purple:"#800080",red:"#ff0000",rosybrown:"#bc8f8f",royalblue:"#4169e1",saddlebrown:"#8b4513",salmon:"#fa8072",sandybrown:"#f4a460",seagreen:"#2e8b57",seashell:"#fff5ee",sienna:"#a0522d",silver:"#c0c0c0",skyblue:"#87ceeb",slateblue:"#6a5acd",slategray:"#708090",snow:"#fffafa",springgreen:"#00ff7f",steelblue:"#4682b4",tan:"#d2b48c",teal:"#008080",thistle:"#d8bfd8",tomato:"#ff6347",turquoise:"#40e0d0",violet:"#ee82ee",wheat:"#f5deb3",white:"#ffffff",whitesmoke:"#f5f5f5",yellow:"#ffff00",yellowgreen:"#9acd32",transparent:"transparent"},_sanitizeNumber:function(a){return"number"==typeof a?a:isNaN(a)||null===a||""===a||void 0===a?1:void 0!==a.toLowerCase?parseFloat(a):1},isTransparent:function(a){return a?(a=a.toLowerCase().trim(),"transparent"===a||a.match(/#?00000000/)||a.match(/(rgba|hsla)\(0,0,0,0?\.?0\)/)):!1},rgbaIsTransparent:function(a){return 0===a.r&&0===a.g&&0===a.b&&0===a.a},setColor:function(a){a=a.toLowerCase().trim(),a&&(this.isTransparent(a)?this.value={h:0,s:0,b:0,a:0}:this.value=this.stringToHSB(a)||{h:0,s:0,b:0,a:1})},stringToHSB:function(b){b=b.toLowerCase();var c;"undefined"!=typeof this.colors[b]&&(b=this.colors[b],c="alias");var d=this,e=!1;return a.each(this.stringParsers,function(a,f){var g=f.re.exec(b),h=g&&f.parse.apply(d,[g]),i=c||f.format||"rgba";return h?(e=i.match(/hsla?/)?d.RGBtoHSB.apply(d,d.HSLtoRGB.apply(d,h)):d.RGBtoHSB.apply(d,h),d.origFormat=i,!1):!0}),e},setHue:function(a){this.value.h=1-a},setSaturation:function(a){this.value.s=a},setBrightness:function(a){this.value.b=1-a},setAlpha:function(a){this.value.a=parseInt(100*(1-a),10)/100},toRGB:function(a,b,c,d){a||(a=this.value.h,b=this.value.s,c=this.value.b),a*=360;var e,f,g,h,i;return a=a%360/60,i=c*b,h=i*(1-Math.abs(a%2-1)),e=f=g=c-i,a=~~a,e+=[i,h,0,0,h,i][a],f+=[h,i,i,h,0,0][a],g+=[0,0,h,i,i,h][a],{r:Math.round(255*e),g:Math.round(255*f),b:Math.round(255*g),a:d||this.value.a}},toHex:function(a,b,c,d){var e=this.toRGB(a,b,c,d);return this.rgbaIsTransparent(e)?"transparent":"#"+(1<<24|parseInt(e.r)<<16|parseInt(e.g)<<8|parseInt(e.b)).toString(16).substr(1)},toHSL:function(a,b,c,d){a=a||this.value.h,b=b||this.value.s,c=c||this.value.b,d=d||this.value.a;var e=a,f=(2-b)*c,g=b*c;return g/=f>0&&1>=f?f:2-f,f/=2,g>1&&(g=1),{h:isNaN(e)?0:e,s:isNaN(g)?0:g,l:isNaN(f)?0:f,a:isNaN(d)?0:d}},toAlias:function(a,b,c,d){var e=this.toHex(a,b,c,d);for(var f in this.colors)if(this.colors[f]===e)return f;return!1},RGBtoHSB:function(a,b,c,d){a/=255,b/=255,c/=255;var e,f,g,h;return g=Math.max(a,b,c),h=g-Math.min(a,b,c),e=0===h?null:g===a?(b-c)/h:g===b?(c-a)/h+2:(a-b)/h+4,e=(e+360)%6*60/360,f=0===h?0:h/g,{h:this._sanitizeNumber(e),s:f,b:g,a:this._sanitizeNumber(d)}},HueToRGB:function(a,b,c){return 0>c?c+=1:c>1&&(c-=1),1>6*c?a+(b-a)*c*6:1>2*c?b:2>3*c?a+(b-a)*(2/3-c)*6:a},HSLtoRGB:function(a,b,c,d){0>b&&(b=0);var e;e=.5>=c?c*(1+b):c+b-c*b;var f=2*c-e,g=a+1/3,h=a,i=a-1/3,j=Math.round(255*this.HueToRGB(f,e,g)),k=Math.round(255*this.HueToRGB(f,e,h)),l=Math.round(255*this.HueToRGB(f,e,i));return[j,k,l,this._sanitizeNumber(d)]},toString:function(a){a=a||"rgba";var b=!1;switch(a){case"rgb":return b=this.toRGB(),this.rgbaIsTransparent(b)?"transparent":"rgb("+b.r+","+b.g+","+b.b+")";case"rgba":return b=this.toRGB(),"rgba("+b.r+","+b.g+","+b.b+","+b.a+")";case"hsl":return b=this.toHSL(),"hsl("+Math.round(360*b.h)+","+Math.round(100*b.s)+"%,"+Math.round(100*b.l)+"%)";case"hsla":return b=this.toHSL(),"hsla("+Math.round(360*b.h)+","+Math.round(100*b.s)+"%,"+Math.round(100*b.l)+"%,"+b.a+")";case"hex":return this.toHex();case"alias":return this.toAlias()||this.toHex();default:return b}},stringParsers:[{re:/rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*?\)/,format:"rgb",parse:function(a){return[a[1],a[2],a[3],1]}},{re:/rgb\(\s*(\d+(?:\.\d+)?)\%\s*,\s*(\d+(?:\.\d+)?)\%\s*,\s*(\d+(?:\.\d+)?)\%\s*?\)/,format:"rgb",parse:function(a){return[2.55*a[1],2.55*a[2],2.55*a[3],1]}},{re:/rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*(\d+(?:\.\d+)?)\s*)?\)/,format:"rgba",parse:function(a){return[a[1],a[2],a[3],a[4]]}},{re:/rgba\(\s*(\d+(?:\.\d+)?)\%\s*,\s*(\d+(?:\.\d+)?)\%\s*,\s*(\d+(?:\.\d+)?)\%\s*(?:,\s*(\d+(?:\.\d+)?)\s*)?\)/,format:"rgba",parse:function(a){return[2.55*a[1],2.55*a[2],2.55*a[3],a[4]]}},{re:/hsl\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\%\s*,\s*(\d+(?:\.\d+)?)\%\s*?\)/,format:"hsl",parse:function(a){return[a[1]/360,a[2]/100,a[3]/100,a[4]]}},{re:/hsla\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\%\s*,\s*(\d+(?:\.\d+)?)\%\s*(?:,\s*(\d+(?:\.\d+)?)\s*)?\)/,format:"hsla",parse:function(a){return[a[1]/360,a[2]/100,a[3]/100,a[4]]}},{re:/#?([a-fA-F0-9]{2})([a-fA-F0-9]{2})([a-fA-F0-9]{2})/,format:"hex",parse:function(a){return[parseInt(a[1],16),parseInt(a[2],16),parseInt(a[3],16),1]}},{re:/#?([a-fA-F0-9])([a-fA-F0-9])([a-fA-F0-9])/,format:"hex",parse:function(a){return[parseInt(a[1]+a[1],16),parseInt(a[2]+a[2],16),parseInt(a[3]+a[3],16),1]}}],colorNameToHex:function(a){return"undefined"!=typeof this.colors[a.toLowerCase()]?this.colors[a.toLowerCase()]:!1}};var c={horizontal:!1,inline:!1,color:!1,format:!1,input:"input",container:!1,component:".add-on, .input-group-addon",sliders:{saturation:{maxLeft:100,maxTop:100,callLeft:"setSaturation",callTop:"setBrightness"},hue:{maxLeft:0,maxTop:100,callLeft:!1,callTop:"setHue"},alpha:{maxLeft:0,maxTop:100,callLeft:!1,callTop:"setAlpha"}},slidersHorz:{saturation:{maxLeft:100,maxTop:100,callLeft:"setSaturation",callTop:"setBrightness"},hue:{maxLeft:100,maxTop:0,callLeft:"setHue",callTop:!1},alpha:{maxLeft:100,maxTop:0,callLeft:"setAlpha",callTop:!1}},template:'<div class="colorpicker dropdown-menu"><div class="colorpicker-saturation"><i><b></b></i></div><div class="colorpicker-hue"><i></i></div><div class="colorpicker-alpha"><i></i></div><div class="colorpicker-color"><div /></div><div class="colorpicker-selectors"></div></div>',align:"right",customClass:null,colorSelectors:null},d=function(d,e){if(this.element=a(d).addClass("colorpicker-element"),this.options=a.extend(!0,{},c,this.element.data(),e),this.component=this.options.component,this.component=this.component!==!1?this.element.find(this.component):!1,this.component&&0===this.component.length&&(this.component=!1),this.container=this.options.container===!0?this.element:this.options.container,this.container=this.container!==!1?a(this.container):!1,this.input=this.element.is("input")?this.element:this.options.input?this.element.find(this.options.input):!1,this.input&&0===this.input.length&&(this.input=!1),this.color=new b(this.options.color!==!1?this.options.color:this.getValue(),this.options.colorSelectors),this.format=this.options.format!==!1?this.options.format:this.color.origFormat,this.options.color!==!1&&(this.updateInput(this.color),this.updateData(this.color)),this.picker=a(this.options.template),this.options.customClass&&this.picker.addClass(this.options.customClass),this.options.inline?this.picker.addClass("colorpicker-inline colorpicker-visible"):this.picker.addClass("colorpicker-hidden"),this.options.horizontal&&this.picker.addClass("colorpicker-horizontal"),("rgba"===this.format||"hsla"===this.format||this.options.format===!1)&&this.picker.addClass("colorpicker-with-alpha"),"right"===this.options.align&&this.picker.addClass("colorpicker-right"),this.options.colorSelectors){var f=this;a.each(this.options.colorSelectors,function(b,c){var d=a("<i />").css("background-color",c).data("class",b);d.click(function(){f.setValue(a(this).css("background-color"))}),f.picker.find(".colorpicker-selectors").append(d)}),this.picker.find(".colorpicker-selectors").show()}this.picker.on("mousedown.colorpicker touchstart.colorpicker",a.proxy(this.mousedown,this)),this.picker.appendTo(this.container?this.container:a("body")),this.input!==!1&&(this.input.on({"keyup.colorpicker":a.proxy(this.keyup,this)}),this.input.on({"change.colorpicker":a.proxy(this.change,this)}),this.component===!1&&this.element.on({"focus.colorpicker":a.proxy(this.show,this)}),this.options.inline===!1&&this.element.on({"focusout.colorpicker":a.proxy(this.hide,this)})),this.component!==!1&&this.component.on({"click.colorpicker":a.proxy(this.show,this)}),this.input===!1&&this.component===!1&&this.element.on({"click.colorpicker":a.proxy(this.show,this)}),this.input!==!1&&this.component!==!1&&"color"===this.input.attr("type")&&this.input.on({"click.colorpicker":a.proxy(this.show,this),"focus.colorpicker":a.proxy(this.show,this)}),this.update(),a(a.proxy(function(){this.element.trigger("create")},this))};d.Color=b,d.prototype={constructor:d,destroy:function(){this.picker.remove(),this.element.removeData("colorpicker").off(".colorpicker"),this.input!==!1&&this.input.off(".colorpicker"),this.component!==!1&&this.component.off(".colorpicker"),this.element.removeClass("colorpicker-element"),this.element.trigger({type:"destroy"})},reposition:function(){if(this.options.inline!==!1||this.options.container)return!1;var a=this.container&&this.container[0]!==document.body?"position":"offset",b=this.component||this.element,c=b[a]();"right"===this.options.align&&(c.left-=this.picker.outerWidth()-b.outerWidth()),this.picker.css({top:c.top+b.outerHeight(),left:c.left})},show:function(b){return this.isDisabled()?!1:(this.picker.addClass("colorpicker-visible").removeClass("colorpicker-hidden"),this.reposition(),a(window).on("resize.colorpicker",a.proxy(this.reposition,this)),!b||this.hasInput()&&"color"!==this.input.attr("type")||b.stopPropagation&&b.preventDefault&&(b.stopPropagation(),b.preventDefault()),this.options.inline===!1&&a(window.document).on({"mousedown.colorpicker":a.proxy(this.hide,this)}),void this.element.trigger({type:"showPicker",color:this.color}))},hide:function(){this.picker.addClass("colorpicker-hidden").removeClass("colorpicker-visible"),a(window).off("resize.colorpicker",this.reposition),a(document).off({"mousedown.colorpicker":this.hide}),this.update(),this.element.trigger({type:"hidePicker",color:this.color})},updateData:function(a){return a=a||this.color.toString(this.format),this.element.data("color",a),a},updateInput:function(a){if(a=a||this.color.toString(this.format),this.input!==!1){if(this.options.colorSelectors){var c=new b(a,this.options.colorSelectors),d=c.toAlias();"undefined"!=typeof this.options.colorSelectors[d]&&(a=d)}this.input.prop("value",a)}return a},updatePicker:function(a){void 0!==a&&(this.color=new b(a,this.options.colorSelectors));var c=this.options.horizontal===!1?this.options.sliders:this.options.slidersHorz,d=this.picker.find("i");return 0!==d.length?(this.options.horizontal===!1?(c=this.options.sliders,d.eq(1).css("top",c.hue.maxTop*(1-this.color.value.h)).end().eq(2).css("top",c.alpha.maxTop*(1-this.color.value.a))):(c=this.options.slidersHorz,d.eq(1).css("left",c.hue.maxLeft*(1-this.color.value.h)).end().eq(2).css("left",c.alpha.maxLeft*(1-this.color.value.a))),d.eq(0).css({top:c.saturation.maxTop-this.color.value.b*c.saturation.maxTop,left:this.color.value.s*c.saturation.maxLeft}),this.picker.find(".colorpicker-saturation").css("backgroundColor",this.color.toHex(this.color.value.h,1,1,1)),this.picker.find(".colorpicker-alpha").css("backgroundColor",this.color.toHex()),this.picker.find(".colorpicker-color, .colorpicker-color div").css("backgroundColor",this.color.toString(this.format)),a):void 0},updateComponent:function(a){if(a=a||this.color.toString(this.format),this.component!==!1){var b=this.component.find("i").eq(0);b.length>0?b.css({backgroundColor:a}):this.component.css({backgroundColor:a})}return a},update:function(a){var b;return(this.getValue(!1)!==!1||a===!0)&&(b=this.updateComponent(),this.updateInput(b),this.updateData(b),this.updatePicker()),b},setValue:function(a){this.color=new b(a,this.options.colorSelectors),this.update(!0),this.element.trigger({type:"changeColor",color:this.color,value:a})},getValue:function(a){a=void 0===a?"#000000":a;var b;return b=this.hasInput()?this.input.val():this.element.data("color"),(void 0===b||""===b||null===b)&&(b=a),b},hasInput:function(){return this.input!==!1},isDisabled:function(){return this.hasInput()?this.input.prop("disabled")===!0:!1},disable:function(){return this.hasInput()?(this.input.prop("disabled",!0),this.element.trigger({type:"disable",color:this.color,value:this.getValue()}),!0):!1},enable:function(){return this.hasInput()?(this.input.prop("disabled",!1),this.element.trigger({type:"enable",color:this.color,value:this.getValue()}),!0):!1},currentSlider:null,mousePointer:{left:0,top:0},mousedown:function(b){b.pageX||b.pageY||!b.originalEvent||(b.pageX=b.originalEvent.touches[0].pageX,b.pageY=b.originalEvent.touches[0].pageY),b.stopPropagation(),b.preventDefault();var c=a(b.target),d=c.closest("div"),e=this.options.horizontal?this.options.slidersHorz:this.options.sliders;if(!d.is(".colorpicker")){if(d.is(".colorpicker-saturation"))this.currentSlider=a.extend({},e.saturation);else if(d.is(".colorpicker-hue"))this.currentSlider=a.extend({},e.hue);else{if(!d.is(".colorpicker-alpha"))return!1;this.currentSlider=a.extend({},e.alpha)}var f=d.offset();this.currentSlider.guide=d.find("i")[0].style,this.currentSlider.left=b.pageX-f.left,this.currentSlider.top=b.pageY-f.top,this.mousePointer={left:b.pageX,top:b.pageY},a(document).on({"mousemove.colorpicker":a.proxy(this.mousemove,this),"touchmove.colorpicker":a.proxy(this.mousemove,this),"mouseup.colorpicker":a.proxy(this.mouseup,this),"touchend.colorpicker":a.proxy(this.mouseup,this)}).trigger("mousemove")}return!1},mousemove:function(a){a.pageX||a.pageY||!a.originalEvent||(a.pageX=a.originalEvent.touches[0].pageX,a.pageY=a.originalEvent.touches[0].pageY),a.stopPropagation(),a.preventDefault();var b=Math.max(0,Math.min(this.currentSlider.maxLeft,this.currentSlider.left+((a.pageX||this.mousePointer.left)-this.mousePointer.left))),c=Math.max(0,Math.min(this.currentSlider.maxTop,this.currentSlider.top+((a.pageY||this.mousePointer.top)-this.mousePointer.top)));return this.currentSlider.guide.left=b+"px",this.currentSlider.guide.top=c+"px",this.currentSlider.callLeft&&this.color[this.currentSlider.callLeft].call(this.color,b/this.currentSlider.maxLeft),this.currentSlider.callTop&&this.color[this.currentSlider.callTop].call(this.color,c/this.currentSlider.maxTop),"setAlpha"===this.currentSlider.callTop&&this.options.format===!1&&(1!==this.color.value.a?(this.format="rgba",this.color.origFormat="rgba"):(this.format="hex",this.color.origFormat="hex")),this.update(!0),this.element.trigger({type:"changeColor",color:this.color}),!1},mouseup:function(b){return b.stopPropagation(),b.preventDefault(),a(document).off({"mousemove.colorpicker":this.mousemove,"touchmove.colorpicker":this.mousemove,"mouseup.colorpicker":this.mouseup,"touchend.colorpicker":this.mouseup}),!1},change:function(a){this.keyup(a)},keyup:function(a){38===a.keyCode?(this.color.value.a<1&&(this.color.value.a=Math.round(100*(this.color.value.a+.01))/100),this.update(!0)):40===a.keyCode?(this.color.value.a>0&&(this.color.value.a=Math.round(100*(this.color.value.a-.01))/100),this.update(!0)):(this.color=new b(this.input.val(),this.options.colorSelectors),this.color.origFormat&&this.options.format===!1&&(this.format=this.color.origFormat),this.getValue(!1)!==!1&&(this.updateData(),this.updateComponent(),this.updatePicker())),this.element.trigger({type:"changeColor",color:this.color,value:this.input.val()})}},a.colorpicker=d,a.fn.colorpicker=function(b){var c,e=arguments,f=this.each(function(){var f=a(this),g=f.data("colorpicker"),h="object"==typeof b?b:{};g||"string"==typeof b?"string"==typeof b&&(c=g[b].apply(g,Array.prototype.slice.call(e,1))):f.data("colorpicker",new d(this,h))});return"getValue"===b?c:f},a.fn.colorpicker.constructor=d});
+\ No newline at end of file
+diff --git a/openstack_dashboard/dashboards/logs/static/logs/js/logs.js b/openstack_dashboard/dashboards/logs/static/logs/js/logs.js
+new file mode 100644
+index 0000000..49843cc
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logs/static/logs/js/logs.js
+@@ -0,0 +1 @@
++/* Additional JavaScript for logs. */
+diff --git a/openstack_dashboard/dashboards/logs/templates/logs/base.html b/openstack_dashboard/dashboards/logs/templates/logs/base.html
+new file mode 100644
+index 0000000..8d2fda1
+--- /dev/null
++++ b/openstack_dashboard/dashboards/logs/templates/logs/base.html
+@@ -0,0 +1,11 @@
++{% extends 'base.html' %}
++
++{% block sidebar %}
++  {% include 'horizon/common/_sidebar.html' %}
++{% endblock %}
++
++{% block main %}
++    {% include "horizon/_messages.html" %}
++    {% block logs_main %}{% endblock %}
++{% endblock %}
++
+diff --git a/openstack_dashboard/enabled/_50_logs.py b/openstack_dashboard/enabled/_50_logs.py
+new file mode 100644
+index 0000000..eda2384
+--- /dev/null
++++ b/openstack_dashboard/enabled/_50_logs.py
+@@ -0,0 +1,7 @@
++DASHBOARD = 'logs'
++
++DISABLED = False
++
++ADD_INSTALLED_APPS = [
++    'openstack_dashboard.dashboards.logs',
++]
+-- 
+1.9.1
+
