@@ -1,0 +1,62 @@
+diff --git a/neutron-server b/neutron-server
+new file mode 100644
+index 0000000..fc950d2
+--- /dev/null
++++ b/neutron-server
+@@ -0,0 +1,4 @@
++import sys
++from neutron.server import main
++if __name__=="__main__":
++	sys.exit(main())
+diff --git a/neutron/plugins/ml2/drivers/create_network.py b/neutron/plugins/ml2/drivers/create_network.py
+new file mode 100644
+index 0000000..5cabd0b
+--- /dev/null
++++ b/neutron/plugins/ml2/drivers/create_network.py
+@@ -0,0 +1,19 @@
++import threading
++
++from neutron.plugins.ml2 import driver_api as api
++
++from oslo_log import log as logging
++
++LOG = logging.getLogger(__name__)
++
++class CreateNetwork(api.MechanismDriver):
++
++	def initialize(self):
++		LOG.info("Initializing")
++		self.lock = threading.Lock()
++
++	def create_network(self, context):
++		network = context.current
++		network_id = network["id"]
++		with self.lock:
++			LOG.info("OLP2015-FOSS-Logging in step <%s> Create network <%s>".format(network_id, network))
+\ No newline at end of file
+diff --git a/neutron/plugins/ml2/drivers/create_router.py b/neutron/plugins/ml2/drivers/create_router.py
+new file mode 100644
+index 0000000..e340e14
+--- /dev/null
++++ b/neutron/plugins/ml2/drivers/create_router.py
+@@ -0,0 +1,19 @@
++import threading
++
++from neutron.plugins.ml2 import driver_api as api
++#from neutron.db import api as db
++from oslo_log import log as logging
++
++LOG = logging.getLogger(__name__)
++
++class CreateRouter(api.MechanismDriver):
++
++	def initialize(self):
++		LOG.info("Initializing")
++		self.lock = threading.Lock()
++
++	def create_router(self, context):
++		router = context.current
++		router_id = network["id"]
++		with self.lock:
++			LOG.info("OLP2015-FOSS-Logging in step <%s> Create router <%s>".format(router_id, router))
+\ No newline at end of file

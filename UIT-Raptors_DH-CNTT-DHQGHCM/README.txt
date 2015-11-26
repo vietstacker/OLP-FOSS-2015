@@ -1,0 +1,1 @@
+Live commit at repo fork from Openstack: https://github.com/duyetdev/horizon/commits/master
